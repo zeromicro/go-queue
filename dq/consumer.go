@@ -28,6 +28,7 @@ type (
 	consumerCluster struct {
 		nodes []*consumerNode
 		red   *redis.Redis
+		group *service.ServiceGroup
 	}
 )
 
@@ -39,6 +40,7 @@ func NewConsumer(c DqConf) Consumer {
 	return &consumerCluster{
 		nodes: nodes,
 		red:   c.Redis.NewRedis(),
+		group: service.NewServiceGroup(),
 	}
 }
 
@@ -59,14 +61,17 @@ func (c *consumerCluster) Consume(consume Consume) {
 		}
 	}
 
-	group := service.NewServiceGroup()
 	for _, node := range c.nodes {
-		group.Add(consumeService{
+		c.group.Add(consumeService{
 			c:       node,
 			consume: guardedConsume,
 		})
 	}
-	group.Start()
+	c.group.Start()
+}
+
+func (c *consumerCluster) Stop() {
+    c.group.Stop()
 }
 
 func (c *consumerCluster) unwrap(body []byte) ([]byte, bool) {
