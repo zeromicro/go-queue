@@ -54,19 +54,16 @@ Kafka Pub/Sub framework
 ### consumer example
 
 config.json
-```json
-{
-    "Name": "kq",
-    "Brokers": [
-        "127.0.0.1:19092",
-        "127.0.0.1:19092",
-        "127.0.0.1:19092"
-    ],
-    "Group": "adhoc",
-    "Topic": "kq",
-    "Offset": "first",
-    "NumProducers": 1
-}
+```yaml
+Name: kq
+Brokers:
+- 127.0.0.1:19092
+- 127.0.0.1:19092
+- 127.0.0.1:19092
+Group: adhoc
+Topic: kq
+Offset: first
+Consumers: 1
 ```
 
 example code
