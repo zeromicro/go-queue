@@ -74,13 +74,13 @@ func NewQueue(c KqConf, handler ConsumeHandler, opts ...QueueOption) (queue.Mess
 	}
 	ensureQueueOptions(c, &options)
 
-	if c.NumConns < 1 {
-		c.NumConns = 1
+	if c.Conns < 1 {
+		c.Conns = 1
 	}
 	q := kafkaQueues{
 		group: service.NewServiceGroup(),
 	}
-	for i := 0; i < c.NumConns; i++ {
+	for i := 0; i < c.Conns; i++ {
 		q.queues = append(q.queues, newKafkaQueue(c, handler, options))
 	}
 
@@ -140,7 +140,7 @@ func (q *kafkaQueue) consumeOne(key, val string) error {
 }
 
 func (q *kafkaQueue) startConsumers() {
-	for i := 0; i < q.c.NumConsumers; i++ {
+	for i := 0; i < q.c.Processors; i++ {
 		q.consumerRoutines.Run(func() {
 			for msg := range q.channel {
 				if err := q.consumeOne(string(msg.Key), string(msg.Value)); err != nil {
@@ -152,7 +152,7 @@ func (q *kafkaQueue) startConsumers() {
 }
 
 func (q *kafkaQueue) startProducers() {
-	for i := 0; i < q.c.NumProducers; i++ {
+	for i := 0; i < q.c.Consumers; i++ {
 		q.producerRoutines.Run(func() {
 			for {
 				msg, err := q.consumer.ReadMessage(context.Background())
