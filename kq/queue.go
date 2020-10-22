@@ -21,6 +21,7 @@ import (
 const (
 	defaultCommitInterval = time.Second
 	defaultMaxWait        = time.Second
+	defaultQueueCapacity  = 1000
 )
 
 type (
@@ -32,6 +33,7 @@ type (
 
 	queueOptions struct {
 		commitInterval time.Duration
+		queueCapacity  int
 		maxWait        time.Duration
 		metrics        *stat.Metrics
 	}
@@ -103,6 +105,7 @@ func newKafkaQueue(c KqConf, handler ConsumeHandler, options queueOptions) queue
 		MaxBytes:       c.MaxBytes, // 10MB
 		MaxWait:        options.maxWait,
 		CommitInterval: options.commitInterval,
+		QueueCapacity:  options.queueCapacity,
 	})
 
 	return &kafkaQueue{
@@ -146,6 +149,7 @@ func (q *kafkaQueue) startConsumers() {
 				if err := q.consumeOne(string(msg.Key), string(msg.Value)); err != nil {
 					logx.Errorf("Error on consuming: %s, error: %v", string(msg.Value), err)
 				}
+				q.consumer.CommitMessages(context.Background(), msg)
 			}
 		})
 	}
@@ -155,7 +159,7 @@ func (q *kafkaQueue) startProducers() {
 	for i := 0; i < q.c.Consumers; i++ {
 		q.producerRoutines.Run(func() {
 			for {
-				msg, err := q.consumer.ReadMessage(context.Background())
+				msg, err := q.consumer.FetchMessage(context.Background())
 				// io.EOF means consumer closed
 				// io.ErrClosedPipe means committing messages on the consumer,
 				// kafka will refire the messages on uncommitted messages, ignore
@@ -189,6 +193,12 @@ func WithCommitInterval(interval time.Duration) QueueOption {
 	}
 }
 
+func WithQueueCapacity(queueCapacity int) QueueOption {
+	return func(options *queueOptions) {
+		options.queueCapacity = queueCapacity
+	}
+}
+
 func WithHandle(handle ConsumeHandle) ConsumeHandler {
 	return innerConsumeHandler{
 		handle: handle,
@@ -218,6 +228,9 @@ func (ch innerConsumeHandler) Consume(k, v string) error {
 func ensureQueueOptions(c KqConf, options *queueOptions) {
 	if options.commitInterval == 0 {
 		options.commitInterval = defaultCommitInterval
+	}
+	if options.queueCapacity == 0 {
+		options.queueCapacity = defaultQueueCapacity
 	}
 	if options.maxWait == 0 {
 		options.maxWait = defaultMaxWait
