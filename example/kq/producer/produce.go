@@ -8,9 +8,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/tal-tech/go-zero/core/cmdline"
-
 	"github.com/tal-tech/go-queue/kq"
+	"github.com/tal-tech/go-zero/core/cmdline"
 )
 
 type message struct {
