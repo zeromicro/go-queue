@@ -39,6 +39,14 @@ func NewProducer(beanstalks []Beanstalk) Producer {
 	if len(beanstalks) < minWrittenNodes {
 		log.Fatalf("nodes must be equal or greater than %d", minWrittenNodes)
 	}
+	producerMap := make(map[string]struct{})
+	for _, v := range beanstalks {
+		if _, ok := producerMap[v.Endpoint]; ok {
+			log.Fatal("all nodes endpoint must different")
+		}
+		producerMap[v.Endpoint] = struct{}{}
+	}
+	producerMap = nil
 
 	var nodes []Producer
 	for _, node := range beanstalks {
