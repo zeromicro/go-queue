@@ -10,6 +10,7 @@ import (
 
 	"github.com/tal-tech/go-zero/core/errorx"
 	"github.com/tal-tech/go-zero/core/fx"
+	"github.com/tal-tech/go-zero/core/lang"
 	"github.com/tal-tech/go-zero/core/logx"
 )
 
@@ -39,19 +40,18 @@ func NewProducer(beanstalks []Beanstalk) Producer {
 	if len(beanstalks) < minWrittenNodes {
 		log.Fatalf("nodes must be equal or greater than %d", minWrittenNodes)
 	}
-	producerMap := make(map[string]struct{})
-	for _, v := range beanstalks {
-		if _, ok := producerMap[v.Endpoint]; ok {
-			log.Fatal("all nodes endpoint must different")
-		}
-		producerMap[v.Endpoint] = struct{}{}
-	}
-	producerMap = nil
 
 	var nodes []Producer
+	producers := make(map[string]lang.PlaceholderType)
 	for _, node := range beanstalks {
+		if _, ok := producers[node.Endpoint]; ok {
+			log.Fatal("all node endpoints must be different")
+		}
+
+		producers[node.Endpoint] = lang.Placeholder
 		nodes = append(nodes, NewProducerNode(node.Endpoint, node.Tube))
 	}
+
 	return &producerCluster{nodes: nodes}
 }
 
