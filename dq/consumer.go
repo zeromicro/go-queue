@@ -70,7 +70,6 @@ func (c *consumerCluster) Consume(consume Consume) {
 }
 
 func (c *consumerCluster) unwrap(body []byte) ([]byte, bool) {
-
 	if len(body) < maxCheckBytes {
 		return body, false
 	}
