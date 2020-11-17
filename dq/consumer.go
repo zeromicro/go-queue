@@ -70,8 +70,15 @@ func (c *consumerCluster) Consume(consume Consume) {
 }
 
 func (c *consumerCluster) unwrap(body []byte) ([]byte, bool) {
+
+	bodyLen := len(body)
+	minCheckBytes := maxCheckBytes
+	if minCheckBytes > bodyLen {
+		minCheckBytes = bodyLen
+	}
+
 	var pos = -1
-	for i := 0; i < maxCheckBytes; i++ {
+	for i := 0; i < minCheckBytes; i++ {
 		if body[i] == timeSep {
 			pos = i
 			break
