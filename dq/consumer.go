@@ -1,6 +1,7 @@
 package dq
 
 import (
+	"math"
 	"strconv"
 	"time"
 
@@ -71,11 +72,7 @@ func (c *consumerCluster) Consume(consume Consume) {
 
 func (c *consumerCluster) unwrap(body []byte) ([]byte, bool) {
 
-	bodyLen := len(body)
-	minCheckBytes := maxCheckBytes
-	if minCheckBytes > bodyLen {
-		minCheckBytes = bodyLen
-	}
+	minCheckBytes := int(math.Min(float64(maxCheckBytes), float64(len(body))))
 
 	var pos = -1
 	for i := 0; i < minCheckBytes; i++ {
