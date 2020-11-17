@@ -56,8 +56,9 @@ func NewProducer(beanstalks []Beanstalk) Producer {
 }
 
 func (p *producerCluster) At(body []byte, at time.Time) (string, error) {
+	wrapped := p.wrap(body, at)
 	return p.insert(func(node Producer) (string, error) {
-		return node.At(p.wrap(body, at), at)
+		return node.At(wrapped, at)
 	})
 }
 
@@ -72,8 +73,9 @@ func (p *producerCluster) Close() error {
 }
 
 func (p *producerCluster) Delay(body []byte, delay time.Duration) (string, error) {
+	wrapped := p.wrap(body, time.Now().Add(delay))
 	return p.insert(func(node Producer) (string, error) {
-		return node.Delay(p.wrap(body, time.Now().Add(delay)), delay)
+		return node.Delay(wrapped, delay)
 	})
 }
 
