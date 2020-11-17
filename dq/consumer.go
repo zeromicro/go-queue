@@ -1,7 +1,6 @@
 package dq
 
 import (
-	"math"
 	"strconv"
 	"time"
 
@@ -72,10 +71,12 @@ func (c *consumerCluster) Consume(consume Consume) {
 
 func (c *consumerCluster) unwrap(body []byte) ([]byte, bool) {
 
-	minCheckBytes := int(math.Min(float64(maxCheckBytes), float64(len(body))))
+	if len(body) < maxCheckBytes {
+		return nil, false
+	}
 
 	var pos = -1
-	for i := 0; i < minCheckBytes; i++ {
+	for i := 0; i < maxCheckBytes; i++ {
 		if body[i] == timeSep {
 			pos = i
 			break
