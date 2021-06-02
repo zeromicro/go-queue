@@ -167,7 +167,7 @@ func (q *kafkaQueue) startProducers() {
 					return
 				}
 				if err != nil {
-					logx.Errorf("Error on reading mesage, %q", err.Error())
+					logx.Errorf("Error on reading message, %q", err.Error())
 					continue
 				}
 				q.channel <- msg
