@@ -52,6 +52,7 @@ func NewPusher(addrs []string, topic string, opts ...PushOption) *Pusher {
 }
 
 func (p *Pusher) Close() error {
+	p.executor.Flush()
 	return p.produer.Close()
 }
 
