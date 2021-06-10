@@ -55,6 +55,7 @@ func (p *Pusher) Close() error {
 	if p.executor != nil {
 		p.executor.Flush()
 	}
+	
 	return p.produer.Close()
 }
 
