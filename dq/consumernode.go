@@ -14,7 +14,7 @@ type (
 		conn          *connection
 		tube          string
 		on            *syncx.AtomicBool
-		processingNum uint64
+		processingNum int64
 	}
 
 	consumeService struct {
@@ -40,7 +40,7 @@ func (c *consumerNode) consumeEvents(consume Consume) {
 		if err := recover(); err != nil {
 			logx.Error(err)
 			// prevent accidental crashes leading to inaccurate counting
-			atomic.AddUint64(&c.processingNum, -1)
+			atomic.AddInt64(&c.processingNum, -1)
 		}
 	}()
 	for c.on.True() {
@@ -63,9 +63,9 @@ func (c *consumerNode) consumeEvents(consume Consume) {
 		id, body, err := conn.Reserve(reserveTimeout)
 		if err == nil {
 			conn.Delete(id)
-			atomic.AddUint64(&c.processingNum, 1)
+			atomic.AddInt64(&c.processingNum, 1)
 			consume(body)
-			atomic.AddUint64(&c.processingNum, -1)
+			atomic.AddInt64(&c.processingNum, -1)
 			continue
 		}
 
@@ -103,7 +103,7 @@ func (cs consumeService) Start() {
 func (cs consumeService) Stop() {
 	cs.c.dispose()
 	for {
-		if atomic.LoadUint64(&cs.c.processingNum) == 0 {
+		if atomic.LoadInt64(&cs.c.processingNum) == 0 {
 			// wait all service consumer func process complete
 			break
 		}
