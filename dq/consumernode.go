@@ -1,6 +1,7 @@
 package dq
 
 import (
+	"sync/atomic"
 	"time"
 
 	"github.com/beanstalkd/go-beanstalk"
@@ -10,9 +11,10 @@ import (
 
 type (
 	consumerNode struct {
-		conn *connection
-		tube string
-		on   *syncx.AtomicBool
+		conn          *connection
+		tube          string
+		on            *syncx.AtomicBool
+		processingNum uint64
 	}
 
 	consumeService struct {
@@ -34,6 +36,13 @@ func (c *consumerNode) dispose() {
 }
 
 func (c *consumerNode) consumeEvents(consume Consume) {
+	defer func() {
+		if err := recover(); err != nil {
+			logx.Error(err)
+			// prevent accidental crashes leading to inaccurate counting
+			atomic.StoreUint64(&c.processingNum, 0)
+		}
+	}()
 	for c.on.True() {
 		conn, err := c.conn.get()
 		if err != nil {
@@ -54,7 +63,9 @@ func (c *consumerNode) consumeEvents(consume Consume) {
 		id, body, err := conn.Reserve(reserveTimeout)
 		if err == nil {
 			conn.Delete(id)
+			atomic.AddUint64(&c.processingNum, 1)
 			consume(body)
+			atomic.AddUint64(&c.processingNum, -1)
 			continue
 		}
 
@@ -91,4 +102,12 @@ func (cs consumeService) Start() {
 
 func (cs consumeService) Stop() {
 	cs.c.dispose()
+	for {
+		if atomic.LoadUint64(&cs.c.processingNum) == 0 {
+			// wait all service consumer func process complete
+			break
+		}
+		// wait 100 millisecond check again
+		time.Sleep(time.Millisecond * 100)
+	}
 }
