@@ -40,7 +40,7 @@ func (c *consumerNode) consumeEvents(consume Consume) {
 		if err := recover(); err != nil {
 			logx.Error(err)
 			// prevent accidental crashes leading to inaccurate counting
-			atomic.StoreUint64(&c.processingNum, 0)
+			atomic.AddUint64(&c.processingNum, -1)
 		}
 	}()
 	for c.on.True() {
