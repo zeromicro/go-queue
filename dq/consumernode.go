@@ -56,7 +56,9 @@ func (c *consumerNode) consumeEvents(consume Consume) {
 		conn.TubeSet.Name[c.tube] = true
 		id, body, err := conn.Reserve(reserveTimeout)
 		if err == nil {
-			conn.Delete(id)
+			if err := conn.Delete(id); err != nil {
+				logx.Error(err)
+			}
 			threading.GoSafe(func() {
 				atomic.AddInt64(&c.processingNum, 1)
 				defer atomic.AddInt64(&c.processingNum, -1)
