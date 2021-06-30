@@ -57,11 +57,11 @@ func (c *consumerNode) consumeEvents(consume Consume) {
 		id, body, err := conn.Reserve(reserveTimeout)
 		if err == nil {
 			conn.Delete(id)
-			atomic.AddInt64(&c.processingNum, 1)
 			threading.GoSafe(func() {
+				atomic.AddInt64(&c.processingNum, 1)
+				defer atomic.AddInt64(&c.processingNum, -1)
 				consume(body)
 			})
-			atomic.AddInt64(&c.processingNum, -1)
 			continue
 		}
 
