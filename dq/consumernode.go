@@ -7,6 +7,7 @@ import (
 	"github.com/beanstalkd/go-beanstalk"
 	"github.com/tal-tech/go-zero/core/logx"
 	"github.com/tal-tech/go-zero/core/syncx"
+	"github.com/tal-tech/go-zero/core/threading"
 )
 
 type (
@@ -36,13 +37,6 @@ func (c *consumerNode) dispose() {
 }
 
 func (c *consumerNode) consumeEvents(consume Consume) {
-	defer func() {
-		if err := recover(); err != nil {
-			logx.Error(err)
-			// prevent accidental crashes leading to inaccurate counting
-			atomic.AddInt64(&c.processingNum, -1)
-		}
-	}()
 	for c.on.True() {
 		conn, err := c.conn.get()
 		if err != nil {
@@ -64,7 +58,9 @@ func (c *consumerNode) consumeEvents(consume Consume) {
 		if err == nil {
 			conn.Delete(id)
 			atomic.AddInt64(&c.processingNum, 1)
-			consume(body)
+			threading.GoSafe(func() {
+				consume(body)
+			})
 			atomic.AddInt64(&c.processingNum, -1)
 			continue
 		}
