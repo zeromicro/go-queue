@@ -8,7 +8,7 @@ type (
 		Tube     string
 	}
 
-	DqConf struct {
+	Conf struct {
 		Beanstalks []Beanstalk
 		Redis      redis.RedisConf
 	}
