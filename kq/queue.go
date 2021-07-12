@@ -120,8 +120,8 @@ func newKafkaQueue(c KqConf, handler ConsumeHandler, options queueOptions) queue
 }
 
 func (q *kafkaQueue) Start() {
+	q.startProcessors()
 	q.startConsumers()
-	q.startProducers()
 
 	q.producerRoutines.Wait()
 	close(q.channel)
@@ -142,7 +142,7 @@ func (q *kafkaQueue) consumeOne(key, val string) error {
 	return err
 }
 
-func (q *kafkaQueue) startConsumers() {
+func (q *kafkaQueue) startProcessors() {
 	for i := 0; i < q.c.Processors; i++ {
 		q.consumerRoutines.Run(func() {
 			for msg := range q.channel {
@@ -155,7 +155,7 @@ func (q *kafkaQueue) startConsumers() {
 	}
 }
 
-func (q *kafkaQueue) startProducers() {
+func (q *kafkaQueue) startConsumers() {
 	for i := 0; i < q.c.Consumers; i++ {
 		q.producerRoutines.Run(func() {
 			for {
