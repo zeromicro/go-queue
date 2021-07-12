@@ -45,8 +45,8 @@ type (
 		consumer         *kafka.Reader
 		handler          ConsumeHandler
 		channel          chan kafka.Message
-		producerRoutines *threading.RoutineGroup
 		consumerRoutines *threading.RoutineGroup
+		processorRoutines *threading.RoutineGroup
 		metrics          *stat.Metrics
 	}
 
@@ -113,8 +113,8 @@ func newKafkaQueue(c KqConf, handler ConsumeHandler, options queueOptions) queue
 		consumer:         consumer,
 		handler:          handler,
 		channel:          make(chan kafka.Message),
-		producerRoutines: threading.NewRoutineGroup(),
 		consumerRoutines: threading.NewRoutineGroup(),
+		processorRoutines: threading.NewRoutineGroup(),
 		metrics:          options.metrics,
 	}
 }
@@ -123,9 +123,9 @@ func (q *kafkaQueue) Start() {
 	q.startProcessors()
 	q.startConsumers()
 
-	q.producerRoutines.Wait()
-	close(q.channel)
 	q.consumerRoutines.Wait()
+	close(q.channel)
+	q.processorRoutines.Wait()
 }
 
 func (q *kafkaQueue) Stop() {
@@ -133,7 +133,7 @@ func (q *kafkaQueue) Stop() {
 	logx.Close()
 }
 
-func (q *kafkaQueue) consumeOne(key, val string) error {
+func (q *kafkaQueue) processOne(key, val string) error {
 	startTime := timex.Now()
 	err := q.handler.Consume(key, val)
 	q.metrics.Add(stat.Task{
@@ -144,9 +144,9 @@ func (q *kafkaQueue) consumeOne(key, val string) error {
 
 func (q *kafkaQueue) startProcessors() {
 	for i := 0; i < q.c.Processors; i++ {
-		q.consumerRoutines.Run(func() {
+		q.processorRoutines.Run(func() {
 			for msg := range q.channel {
-				if err := q.consumeOne(string(msg.Key), string(msg.Value)); err != nil {
+				if err := q.processOne(string(msg.Key), string(msg.Value)); err != nil {
 					logx.Errorf("Error on consuming: %s, error: %v", string(msg.Value), err)
 				}
 				q.consumer.CommitMessages(context.Background(), msg)
@@ -157,7 +157,7 @@ func (q *kafkaQueue) startProcessors() {
 
 func (q *kafkaQueue) startConsumers() {
 	for i := 0; i < q.c.Consumers; i++ {
-		q.producerRoutines.Run(func() {
+		q.consumerRoutines.Run(func() {
 			for {
 				msg, err := q.consumer.FetchMessage(context.Background())
 				// io.EOF means consumer closed
