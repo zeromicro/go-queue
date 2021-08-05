@@ -3,6 +3,7 @@ module github.com/tal-tech/go-queue
 go 1.14
 
 require (
+	github.com/apache/pulsar-client-go v0.6.0
 	github.com/beanstalkd/go-beanstalk v0.1.0
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/klauspost/compress v1.13.1 // indirect

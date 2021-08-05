@@ -1,0 +1,7 @@
+Name: pq
+Brokers:
+  - 127.0.0.1:6650
+Topic: pq
+Conns: 2
+Processors: 2
+SubscriptionName: pq
