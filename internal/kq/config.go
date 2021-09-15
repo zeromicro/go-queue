@@ -7,7 +7,7 @@ const (
 	lastOffset  = "last"
 )
 
-type KqConf struct {
+type Conf struct {
 	service.ServiceConf
 	Brokers    []string
 	Group      string

@@ -1,15 +1,16 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"math/rand"
 	"strconv"
 	"time"
 
-	"github.com/tal-tech/go-queue/kq"
 	"github.com/tal-tech/go-zero/core/cmdline"
+	"github.com/tal-tech/go-zero/core/conf"
+
+	queue "github.com/tal-tech/go-queue"
 )
 
 type message struct {
@@ -19,11 +20,11 @@ type message struct {
 }
 
 func main() {
-	pusher := kq.NewPusher([]string{
-		"127.0.0.1:19092",
-		"127.0.0.1:19092",
-		"127.0.0.1:19092",
-	}, "kq")
+	var c queue.KqConf
+	conf.MustLoad("config.yaml", &c)
+
+	pusher := queue.NewKafka()
+	pusher.SetUp(c.Brokers, c.Topic)
 
 	ticker := time.NewTicker(time.Millisecond)
 	for round := 0; round < 3; round++ {
@@ -35,13 +36,8 @@ func main() {
 				Value:   fmt.Sprintf("%d,%d", round, count),
 				Payload: fmt.Sprintf("%d,%d", round, count),
 			}
-			body, err := json.Marshal(m)
-			if err != nil {
-				log.Fatal(err)
-			}
 
-			fmt.Println(string(body))
-			if err := pusher.Push(string(body)); err != nil {
+			if err := pusher.SendMsg(m); err != nil {
 				log.Fatal(err)
 			}
 		}

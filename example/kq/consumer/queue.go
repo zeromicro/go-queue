@@ -3,18 +3,24 @@ package main
 import (
 	"fmt"
 
-	"github.com/tal-tech/go-queue/kq"
 	"github.com/tal-tech/go-zero/core/conf"
+
+	queue "github.com/tal-tech/go-queue"
 )
 
 func main() {
-	var c kq.KqConf
+	var c queue.KqConf
 	conf.MustLoad("config.yaml", &c)
 
-	q := kq.MustNewQueue(c, kq.WithHandle(func(k, v string) error {
-		fmt.Printf("=> %s\n", v)
+	q := queue.NewKafka()
+	q.SetUp(c.Brokers, c.Topic)
+	q.RegConsumer("test", func(key, value string) error {
+		fmt.Printf("=> %s:%s\n", key, value)
 		return nil
-	}))
+	})
+
 	defer q.Stop()
 	q.Start()
+
+	select {}
 }

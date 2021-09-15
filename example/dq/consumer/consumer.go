@@ -3,28 +3,24 @@ package main
 import (
 	"fmt"
 
-	"github.com/tal-tech/go-queue/dq"
+	queue "github.com/tal-tech/go-queue"
+
 	"github.com/tal-tech/go-zero/core/stores/redis"
 )
 
 func main() {
-	consumer := dq.NewConsumer(dq.DqConf{
-		Beanstalks: []dq.Beanstalk{
-			{
-				Endpoint: "localhost:11300",
-				Tube:     "tube",
-			},
-			{
-				Endpoint: "localhost:11300",
-				Tube:     "tube",
-			},
-		},
-		Redis: redis.RedisConf{
-			Host: "localhost:6379",
-			Type: redis.NodeType,
-		},
+	consumer := queue.NewDelayMq()
+	consumer.SetUp([]string{"localhost:11300", "localhost:11301"}, "tube", redis.RedisConf{
+		Host: "localhost:6379",
+		Type: redis.NodeType,
 	})
-	consumer.Consume(func(body []byte) {
+
+	consumer.RegConsumer(1, func(body []byte) {
 		fmt.Println(string(body))
 	})
+
+	consumer.Start()
+	defer consumer.Stop()
+
+	select {}
 }
