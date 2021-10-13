@@ -27,23 +27,22 @@ func main() {
 
 	ticker := time.NewTicker(time.Millisecond)
 	for round := 0; round < 3; round++ {
-		select {
-		case <-ticker.C:
-			count := rand.Intn(100)
-			m := message{
-				Key:     strconv.FormatInt(time.Now().UnixNano(), 10),
-				Value:   fmt.Sprintf("%d,%d", round, count),
-				Payload: fmt.Sprintf("%d,%d", round, count),
-			}
-			body, err := json.Marshal(m)
-			if err != nil {
-				log.Fatal(err)
-			}
+		<-ticker.C
 
-			fmt.Println(string(body))
-			if err := pusher.Push(string(body)); err != nil {
-				log.Fatal(err)
-			}
+		count := rand.Intn(100)
+		m := message{
+			Key:     strconv.FormatInt(time.Now().UnixNano(), 10),
+			Value:   fmt.Sprintf("%d,%d", round, count),
+			Payload: fmt.Sprintf("%d,%d", round, count),
+		}
+		body, err := json.Marshal(m)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		fmt.Println(string(body))
+		if err := pusher.Push(string(body)); err != nil {
+			log.Fatal(err)
 		}
 	}
 
