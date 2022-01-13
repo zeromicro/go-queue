@@ -5,5 +5,5 @@ go 1.14
 require (
 	github.com/beanstalkd/go-beanstalk v0.1.0
 	github.com/segmentio/kafka-go v0.4.25
-	github.com/tal-tech/go-zero v1.2.4
+	github.com/tal-tech/go-zero v1.2.5
 )
