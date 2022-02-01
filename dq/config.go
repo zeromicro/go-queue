@@ -1,6 +1,6 @@
 package dq
 
-import "github.com/tal-tech/go-zero/core/stores/redis"
+import "github.com/zeromicro/go-zero/core/stores/redis"
 
 type (
 	Beanstalk struct {

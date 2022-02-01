@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 
-	"github.com/tal-tech/go-zero/core/conf"
 	"github.com/zeromicro/go-queue/kq"
+	"github.com/zeromicro/go-zero/core/conf"
 )
 
 func main() {
