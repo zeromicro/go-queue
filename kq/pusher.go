@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/segmentio/kafka-go"
-	"github.com/segmentio/kafka-go/snappy"
 	"github.com/zeromicro/go-zero/core/executors"
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -27,13 +26,12 @@ type (
 )
 
 func NewPusher(addrs []string, topic string, opts ...PushOption) *Pusher {
-	producer := kafka.NewWriter(kafka.WriterConfig{
-		Brokers:          addrs,
-		Topic:            topic,
-		Balancer:         &kafka.LeastBytes{},
-		CompressionCodec: snappy.NewCompressionCodec(),
-	})
-
+	producer := &kafka.Writer{
+		Addr:        kafka.TCP(addrs...),
+		Topic:       topic,
+		Balancer:    &kafka.LeastBytes{},
+		Compression: kafka.Snappy,
+	}
 	pusher := &Pusher{
 		produer: producer,
 		topic:   topic,
