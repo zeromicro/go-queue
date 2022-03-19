@@ -16,10 +16,10 @@ func main() {
 	}, ContentType: "application/json"}
 	sender := rabbitmq.MustNewRabbitMqSender(conf)
 	data := map[string]interface{}{
-		"msg": "json test",
+		"msg": "json test 111",
 	}
 	msg, _ := json.Marshal(data)
-	err := sender.Send("exchange.direct", "gozero", string(msg))
+	err := sender.Send("exchange.direct", "atguigu", msg)
 	if err != nil {
 		log.Fatal(err)
 	}

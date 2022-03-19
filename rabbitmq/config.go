@@ -19,13 +19,13 @@ type ConsumerConf struct {
 	Name      string
 	AutoAck   bool `json:",default=true"`
 	Exclusive bool `json:",default=false"`
-	NoLocal   bool `json:",default=false"` // Set to true, which means that messages sent by producers in the same conenction cannot be delivered to consumers in this connection
+	NoLocal   bool `json:",default=false"` // Set to true, which means that messages sent by producers in the same connection cannot be delivered to consumers in this connection
 	NoWait    bool `json:",default=false"` // Whether to block processing
 }
 
 type RabbitMqSenderConf struct {
 	RabbitMqConf
-	ContentType string
+	ContentType string // MIME content type
 }
 
 type QueueConf struct {

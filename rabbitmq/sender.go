@@ -8,7 +8,7 @@ import (
 
 type (
 	Sender interface {
-		Send(exchange string, routeKey string, message string) error
+		Send(exchange string, routeKey string, msg []byte) error
 	}
 
 	RabbitMqSender struct {
@@ -35,7 +35,7 @@ func (q *RabbitMqSender) ErrorHandler(err error, message string) {
 		panic(fmt.Sprintf("%s:%s", message, err))
 	}
 }
-func (q *RabbitMqSender) Send(exchange string, routeKey string, message string) error {
+func (q *RabbitMqSender) Send(exchange string, routeKey string, msg []byte) error {
 
 	err := q.channel.Publish(
 		exchange,
@@ -44,7 +44,7 @@ func (q *RabbitMqSender) Send(exchange string, routeKey string, message string) 
 		false,
 		amqp.Publishing{
 			ContentType: q.ContentType,
-			Body:        []byte(message),
+			Body:        msg,
 		},
 	)
 	return err
