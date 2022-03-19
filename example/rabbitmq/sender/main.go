@@ -19,7 +19,14 @@ func main() {
 		"msg": "json test 111",
 	}
 	msg, _ := json.Marshal(data)
-	err := sender.Send("exchange.direct", "atguigu", msg)
+	err := sender.Send("exchange.direct", "gozero", msg)
+	if err != nil {
+		log.Fatal(err)
+	}
+	conf.ContentType = "text/plain"
+	sender = rabbitmq.MustNewRabbitMqSender(conf)
+	message := "test message"
+	err = sender.Send("exchange.direct", "gozero", []byte(message))
 	if err != nil {
 		log.Fatal(err)
 	}
