@@ -25,6 +25,7 @@ type ConsumerConf struct {
 
 type RabbitMqSenderConf struct {
 	RabbitMqConf
+	ContentType string
 }
 
 type QueueConf struct {

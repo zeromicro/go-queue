@@ -13,7 +13,7 @@ type (
 	}
 )
 
-func NewRabbitMqAdmin(rabbitMqConf RabbitMqConf) *RabbitMqAdmin {
+func MustNewRabbitMqAdmin(rabbitMqConf RabbitMqConf) *RabbitMqAdmin {
 	admin := &RabbitMqAdmin{}
 	conn, err := amqp.Dial(getRabbitMqURL(rabbitMqConf))
 	admin.ErrorHandler(err, "failed to connect rabbitmq!")

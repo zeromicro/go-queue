@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"github.com/zeromicro/go-queue/rabbitmq"
 	"log"
 )
@@ -12,9 +13,13 @@ func main() {
 		Port:     5672,
 		Username: "guest",
 		Password: "guest",
-	}}
-	sender := rabbitmq.NewRabbitMqSender(conf)
-	err := sender.Send("exchange.direct", "gozero", "test")
+	}, ContentType: "application/json"}
+	sender := rabbitmq.MustNewRabbitMqSender(conf)
+	data := map[string]interface{}{
+		"msg": "json test",
+	}
+	msg, _ := json.Marshal(data)
+	err := sender.Send("exchange.direct", "gozero", string(msg))
 	if err != nil {
 		log.Fatal(err)
 	}

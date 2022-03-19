@@ -13,7 +13,7 @@ func main() {
 		Username: "guest",
 		Password: "guest",
 	}
-	admin := rabbitmq.NewRabbitMqAdmin(conf)
+	admin := rabbitmq.MustNewRabbitMqAdmin(conf)
 	exchangeConf := rabbitmq.ExchangeConf{
 		ExchangeName: "jiang",
 		Type:         "direct",

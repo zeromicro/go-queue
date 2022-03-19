@@ -8,17 +8,18 @@ import (
 
 type (
 	Sender interface {
-		Send(string, string, string) error
+		Send(exchange string, routeKey string, message string) error
 	}
 
 	RabbitMqSender struct {
-		conn    *amqp.Connection
-		channel *amqp.Channel
+		conn        *amqp.Connection
+		channel     *amqp.Channel
+		ContentType string
 	}
 )
 
-func NewRabbitMqSender(rabbitMqConf RabbitMqSenderConf) Sender {
-	sender := &RabbitMqSender{}
+func MustNewRabbitMqSender(rabbitMqConf RabbitMqSenderConf) Sender {
+	sender := &RabbitMqSender{ContentType: rabbitMqConf.ContentType}
 	conn, err := amqp.Dial(getRabbitMqURL(rabbitMqConf.RabbitMqConf))
 	sender.ErrorHandler(err, "failed to connect rabbitmq!")
 	sender.conn = conn
@@ -42,7 +43,7 @@ func (q *RabbitMqSender) Send(exchange string, routeKey string, message string) 
 		false,
 		false,
 		amqp.Publishing{
-			ContentType: "text/plain",
+			ContentType: q.ContentType,
 			Body:        []byte(message),
 		},
 	)
