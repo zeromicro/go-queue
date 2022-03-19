@@ -1,0 +1,10 @@
+ListenerConf:
+  Username: guest
+  Password: guest
+  Host: 192.168.253.100
+  Port: 5672
+  ListenerQueues:
+    -
+      Name: gozero
+
+
