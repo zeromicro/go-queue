@@ -1,19 +1,19 @@
 package main
 
 import (
-	"github.com/zeromicro/go-queue/rabbitmq"
 	"log"
+
+	"github.com/zeromicro/go-queue/rabbitmq"
 )
 
 func main() {
-
-	conf := rabbitmq.RabbitMqConf{
+	conf := rabbitmq.RabbitConf{
 		Host:     "192.168.253.100",
 		Port:     5672,
 		Username: "guest",
 		Password: "guest",
 	}
-	admin := rabbitmq.MustNewRabbitMqAdmin(conf)
+	admin := rabbitmq.MustNewAdmin(conf)
 	exchangeConf := rabbitmq.ExchangeConf{
 		ExchangeName: "jiang",
 		Type:         "direct",
@@ -27,6 +27,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	queueConf := rabbitmq.QueueConf{
 		Name:       "jxj",
 		Durable:    true,
@@ -38,6 +39,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	err = admin.Bind("jxj", "jxj", "jiang", false, nil)
 	if err != nil {
 		log.Fatal(err)

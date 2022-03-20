@@ -1,11 +1,11 @@
 package rabbitmq
 
 import (
-	"fmt"
+	"log"
+
 	"github.com/streadway/amqp"
 	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/core/queue"
-	"log"
 )
 
 type (
@@ -20,40 +20,28 @@ type (
 		channel *amqp.Channel
 		forever chan bool
 		handler ConsumeHandler
-		queues  RabbitMqListenerConf
+		queues  RabbitListenerConf
 	}
 )
 
-func MustNewRabbitMqListener(listenerConf RabbitMqListenerConf, handler ConsumeHandler) queue.MessageQueue {
-	q, err := newRabbitMq(listenerConf, handler)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return q
-}
-
-func newRabbitMq(listenerConf RabbitMqListenerConf, handler ConsumeHandler) (queue.MessageQueue, error) {
+func MustNewListener(listenerConf RabbitListenerConf, handler ConsumeHandler) queue.MessageQueue {
 	listener := RabbitListener{queues: listenerConf, handler: handler, forever: make(chan bool)}
-	conn, err := amqp.Dial(getRabbitMqURL(listenerConf.RabbitMqConf))
-	listener.ErrorHandler(err, "failed to connect rabbitmq!")
-	listener.conn = conn
-
-	channel, err := listener.conn.Channel()
-	listener.ErrorHandler(err, "failed to open a channel")
-	listener.channel = channel
-	return listener, nil
-}
-
-func (q RabbitListener) ErrorHandler(err error, message string) {
+	conn, err := amqp.Dial(getRabbitURL(listenerConf.RabbitConf))
 	if err != nil {
-		logx.Errorf("%s:%s", message, err)
-		panic(fmt.Sprintf("%s:%s", message, err))
+		log.Fatalf("failed to connect rabbitmq, error: %v", err)
 	}
+
+	listener.conn = conn
+	channel, err := listener.conn.Channel()
+	if err != nil {
+		log.Fatalf("failed to open a channel: %v", err)
+	}
+
+	listener.channel = channel
+	return listener
 }
 
 func (q RabbitListener) Start() {
-
 	for _, que := range q.queues.ListenerQueues {
 		msg, err := q.channel.Consume(
 			que.Name,
@@ -64,7 +52,10 @@ func (q RabbitListener) Start() {
 			que.NoWait,
 			nil,
 		)
-		q.ErrorHandler(err, "failed to listener")
+		if err != nil {
+			log.Fatalf("failed to listener, error: %v", err)
+		}
+
 		go func() {
 			for d := range msg {
 				if err := q.handler.Consume(string(d.Body)); err != nil {
@@ -73,6 +64,7 @@ func (q RabbitListener) Start() {
 			}
 		}()
 	}
+
 	<-q.forever
 }
 

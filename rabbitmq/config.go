@@ -2,7 +2,7 @@ package rabbitmq
 
 import "fmt"
 
-type RabbitMqConf struct {
+type RabbitConf struct {
 	Username string
 	Password string
 	Host     string
@@ -10,8 +10,8 @@ type RabbitMqConf struct {
 	VHost    string `json:",optional"`
 }
 
-type RabbitMqListenerConf struct {
-	RabbitMqConf
+type RabbitListenerConf struct {
+	RabbitConf
 	ListenerQueues []ConsumerConf
 }
 
@@ -19,12 +19,15 @@ type ConsumerConf struct {
 	Name      string
 	AutoAck   bool `json:",default=true"`
 	Exclusive bool `json:",default=false"`
-	NoLocal   bool `json:",default=false"` // Set to true, which means that messages sent by producers in the same connection cannot be delivered to consumers in this connection
-	NoWait    bool `json:",default=false"` // Whether to block processing
+	// Set to true, which means that messages sent by producers in the same connection
+	// cannot be delivered to consumers in this connection.
+	NoLocal bool `json:",default=false"`
+	// Whether to block processing
+	NoWait bool `json:",default=false"`
 }
 
-type RabbitMqSenderConf struct {
-	RabbitMqConf
+type RabbitSenderConf struct {
+	RabbitConf
 	ContentType string `json:",default=text/plain"` // MIME content type
 }
 
@@ -46,6 +49,7 @@ type ExchangeConf struct {
 	Queues       []QueueConf
 }
 
-func getRabbitMqURL(rabbitConf RabbitMqConf) string {
-	return fmt.Sprintf("amqp://%s:%s@%s:%d/%s", rabbitConf.Username, rabbitConf.Password, rabbitConf.Host, rabbitConf.Port, rabbitConf.VHost)
+func getRabbitURL(rabbitConf RabbitConf) string {
+	return fmt.Sprintf("amqp://%s:%s@%s:%d/%s", rabbitConf.Username, rabbitConf.Password,
+		rabbitConf.Host, rabbitConf.Port, rabbitConf.VHost)
 }

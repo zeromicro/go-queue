@@ -3,9 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
+
 	"github.com/zeromicro/go-queue/example/rabbitmq/listener/config"
 	"github.com/zeromicro/go-queue/rabbitmq"
-
 	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/core/service"
 )
@@ -17,13 +17,11 @@ func main() {
 	var c config.Config
 	conf.MustLoad(*configFile, &c)
 
-	listener := rabbitmq.MustNewRabbitMqListener(c.ListenerConf, Handler{})
-
+	listener := rabbitmq.MustNewListener(c.ListenerConf, Handler{})
 	serviceGroup := service.NewServiceGroup()
 	serviceGroup.Add(listener)
 	defer serviceGroup.Stop()
 	serviceGroup.Start()
-
 }
 
 type Handler struct {

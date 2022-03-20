@@ -1,9 +1,9 @@
 package rabbitmq
 
 import (
-	"fmt"
+	"log"
+
 	"github.com/streadway/amqp"
-	"github.com/zeromicro/go-zero/core/logx"
 )
 
 type (
@@ -18,26 +18,25 @@ type (
 	}
 )
 
-func MustNewRabbitMqSender(rabbitMqConf RabbitMqSenderConf) Sender {
+func MustNewSender(rabbitMqConf RabbitSenderConf) Sender {
 	sender := &RabbitMqSender{ContentType: rabbitMqConf.ContentType}
-	conn, err := amqp.Dial(getRabbitMqURL(rabbitMqConf.RabbitMqConf))
-	sender.ErrorHandler(err, "failed to connect rabbitmq!")
-	sender.conn = conn
+	conn, err := amqp.Dial(getRabbitURL(rabbitMqConf.RabbitConf))
+	if err != nil {
+		log.Fatalf("failed to connect rabbitmq, error: %v", err)
+	}
 
+	sender.conn = conn
 	channel, err := sender.conn.Channel()
-	sender.ErrorHandler(err, "failed to open a channel")
+	if err != nil {
+		log.Fatalf("failed to open a channel, error: %v", err)
+	}
+
 	sender.channel = channel
 	return sender
 }
-func (q *RabbitMqSender) ErrorHandler(err error, message string) {
-	if err != nil {
-		logx.Errorf("%s:%s", message, err)
-		panic(fmt.Sprintf("%s:%s", message, err))
-	}
-}
-func (q *RabbitMqSender) Send(exchange string, routeKey string, msg []byte) error {
 
-	err := q.channel.Publish(
+func (q *RabbitMqSender) Send(exchange string, routeKey string, msg []byte) error {
+	return q.channel.Publish(
 		exchange,
 		routeKey,
 		false,
@@ -47,5 +46,4 @@ func (q *RabbitMqSender) Send(exchange string, routeKey string, msg []byte) erro
 			Body:        msg,
 		},
 	)
-	return err
 }
