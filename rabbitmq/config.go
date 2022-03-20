@@ -25,7 +25,7 @@ type ConsumerConf struct {
 
 type RabbitMqSenderConf struct {
 	RabbitMqConf
-	ContentType string // MIME content type
+	ContentType string `json:",default=text/plain"` // MIME content type
 }
 
 type QueueConf struct {
