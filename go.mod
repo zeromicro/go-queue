@@ -6,5 +6,5 @@ require (
 	github.com/beanstalkd/go-beanstalk v0.1.0
 	github.com/segmentio/kafka-go v0.4.25
 	github.com/streadway/amqp v1.0.0
-	github.com/zeromicro/go-zero v1.3.1
+	github.com/zeromicro/go-zero v1.3.2
 )
