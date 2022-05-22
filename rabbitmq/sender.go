@@ -1,9 +1,10 @@
 package rabbitmq
 
 import (
+	"context"
 	"log"
 
-	"github.com/streadway/amqp"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 type (
@@ -36,7 +37,8 @@ func MustNewSender(rabbitMqConf RabbitSenderConf) Sender {
 }
 
 func (q *RabbitMqSender) Send(exchange string, routeKey string, msg []byte) error {
-	return q.channel.Publish(
+	return q.channel.PublishWithContext(
+		context.Background(),
 		exchange,
 		routeKey,
 		false,
