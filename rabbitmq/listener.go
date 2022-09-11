@@ -70,6 +70,6 @@ func (q RabbitListener) Start() {
 
 func (q RabbitListener) Stop() {
 	q.channel.Close()
-	q.channel.Close()
+	q.conn.Close()
 	close(q.forever)
 }
