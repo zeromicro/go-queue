@@ -9,6 +9,7 @@ import (
 	"github.com/segmentio/kafka-go"
 	_ "github.com/segmentio/kafka-go/gzip"
 	_ "github.com/segmentio/kafka-go/lz4"
+	"github.com/segmentio/kafka-go/sasl/plain"
 	_ "github.com/segmentio/kafka-go/snappy"
 	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/core/queue"
@@ -96,7 +97,8 @@ func newKafkaQueue(c KqConf, handler ConsumeHandler, options queueOptions) queue
 	} else {
 		offset = kafka.LastOffset
 	}
-	consumer := kafka.NewReader(kafka.ReaderConfig{
+
+	readerConfig := kafka.ReaderConfig{
 		Brokers:        c.Brokers,
 		GroupID:        c.Group,
 		Topic:          c.Topic,
@@ -106,7 +108,18 @@ func newKafkaQueue(c KqConf, handler ConsumeHandler, options queueOptions) queue
 		MaxWait:        options.maxWait,
 		CommitInterval: options.commitInterval,
 		QueueCapacity:  options.queueCapacity,
-	})
+	}
+
+	if c.Username != "" && c.Password != "" {
+		readerConfig.Dialer = &kafka.Dialer{
+			SASLMechanism: plain.Mechanism{
+				Username: c.Username,
+				Password: c.Password,
+			},
+		}
+	}
+
+	consumer := kafka.NewReader(readerConfig)
 
 	return &kafkaQueue{
 		c:                c,
