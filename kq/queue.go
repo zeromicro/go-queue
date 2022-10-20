@@ -109,8 +109,7 @@ func newKafkaQueue(c KqConf, handler ConsumeHandler, options queueOptions) queue
 		CommitInterval: options.commitInterval,
 		QueueCapacity:  options.queueCapacity,
 	}
-
-	if c.Username != "" && c.Password != "" {
+	if len(c.Username) > 0 && len(c.Password) > 0 {
 		readerConfig.Dialer = &kafka.Dialer{
 			SASLMechanism: plain.Mechanism{
 				Username: c.Username,
@@ -118,7 +117,6 @@ func newKafkaQueue(c KqConf, handler ConsumeHandler, options queueOptions) queue
 			},
 		}
 	}
-
 	consumer := kafka.NewReader(readerConfig)
 
 	return &kafkaQueue{
