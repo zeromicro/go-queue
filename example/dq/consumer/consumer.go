@@ -24,7 +24,10 @@ func main() {
 			Type: redis.NodeType,
 		},
 	})
-	consumer.Consume(func(body []byte) {
+	group := consumer.Consume(func(body []byte) {
 		fmt.Println(string(body))
 	})
+
+	defer group.Stop()
+	group.Start()
 }
