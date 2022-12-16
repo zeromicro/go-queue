@@ -159,6 +159,10 @@ func (q *kafkaQueue) startConsumers() {
 			for msg := range q.channel {
 				if err := q.consumeOne(string(msg.Key), string(msg.Value)); err != nil {
 					logx.Errorf("Error on consuming: %s, error: %v", string(msg.Value), err)
+					if q.c.ForceCommit {
+						q.consumer.CommitMessages(context.Background(), msg)
+					}
+					continue
 				}
 				q.consumer.CommitMessages(context.Background(), msg)
 			}
