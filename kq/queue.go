@@ -28,6 +28,8 @@ const (
 type (
 	ConsumeHandle func(key, value string) error
 
+	ConsumeErrorHandler func(msg kafka.Message, err error)
+
 	ConsumeHandler interface {
 		Consume(key, value string) error
 	}
@@ -37,6 +39,7 @@ type (
 		queueCapacity  int
 		maxWait        time.Duration
 		metrics        *stat.Metrics
+		errorHandler   ConsumeErrorHandler
 	}
 
 	QueueOption func(*queueOptions)
@@ -49,6 +52,7 @@ type (
 		producerRoutines *threading.RoutineGroup
 		consumerRoutines *threading.RoutineGroup
 		metrics          *stat.Metrics
+		errorHandler     ConsumeErrorHandler
 	}
 
 	kafkaQueues struct {
@@ -127,6 +131,7 @@ func newKafkaQueue(c KqConf, handler ConsumeHandler, options queueOptions) queue
 		producerRoutines: threading.NewRoutineGroup(),
 		consumerRoutines: threading.NewRoutineGroup(),
 		metrics:          options.metrics,
+		errorHandler:     options.errorHandler,
 	}
 }
 
@@ -158,7 +163,10 @@ func (q *kafkaQueue) startConsumers() {
 		q.consumerRoutines.Run(func() {
 			for msg := range q.channel {
 				if err := q.consumeOne(string(msg.Key), string(msg.Value)); err != nil {
-					logx.Errorf("consume: %s, error: %v", string(msg.Value), err)
+					if q.errorHandler != nil {
+						q.errorHandler(msg, err)
+					}
+
 					if !q.c.ForceCommit {
 						continue
 					}
@@ -234,6 +242,12 @@ func WithMetrics(metrics *stat.Metrics) QueueOption {
 	}
 }
 
+func WithErrorHandler(errorHandler ConsumeErrorHandler) QueueOption {
+	return func(options *queueOptions) {
+		options.errorHandler = errorHandler
+	}
+}
+
 type innerConsumeHandler struct {
 	handle ConsumeHandle
 }
@@ -254,5 +268,10 @@ func ensureQueueOptions(c KqConf, options *queueOptions) {
 	}
 	if options.metrics == nil {
 		options.metrics = stat.NewMetrics(c.Name)
+	}
+	if options.errorHandler == nil {
+		options.errorHandler = func(msg kafka.Message, err error) {
+			logx.Errorf("consume: %s, error: %v", string(msg.Value), err)
+		}
 	}
 }
