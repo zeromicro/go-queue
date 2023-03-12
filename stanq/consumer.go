@@ -14,34 +14,34 @@ import (
 type (
 	ConsumeHandle func(m *stan.Msg) error
 
-	// ConsumeHandler 消费者接口，用于定义消费者所需的方法
+	// ConsumeHandler Consumer interface, used to define the methods required by the consumer
 	ConsumeHandler interface {
 		HandleMessage(m *stan.Msg) error
 	}
 
-	// ConsumerQueue 消费者队列，用于维护一个消费者组和队列的关系
+	// ConsumerQueue Consumer queue, used to maintain the relationship between a consumer group and queue
 	ConsumerQueue struct {
-		GroupName     string                    // 消费者组名称
-		QueueName     string                    // 队列名称
-		Subject       string                    // 订阅的subject
-		Consumer      ConsumeHandler            // 消费者对象
-		AckWaitTime   int                       // 等待Ack的时间
-		MaxInflight   int                       // 最大未ack的消息数
-		ManualAckMode bool                      //是否手动ack
-		Options       []stan.SubscriptionOption // 订阅配置项
+		GroupName     string                    // consumer group name
+		QueueName     string                    // queue name
+		Subject       string                    // Subscribe subject
+		Consumer      ConsumeHandler            // consumer object
+		AckWaitTime   int                       // Waiting time for Ack
+		MaxInflight   int                       // Maximum number of unacked messages
+		ManualAckMode bool                      //Whether to manually ack
+		Options       []stan.SubscriptionOption // Subscription configuration item
 	}
 
-	// ConsumerManager 消费者管理器，用于管理多个消费者队列
+	// ConsumerManager Consumer manager for managing multiple consumer queues
 	ConsumerManager struct {
-		mutex    sync.RWMutex    // 读写锁
-		conn     stan.Conn       // nats-streaming连接
-		queues   []ConsumerQueue // 消费者队列列表
-		options  []stan.Option   // 连接配置项
-		doneChan chan struct{}   // 关闭通道
+		mutex    sync.RWMutex    // read-write lock
+		conn     stan.Conn       // nats-streaming connect
+		queues   []ConsumerQueue // consumer queue list
+		options  []stan.Option   // Connection configuration items
+		doneChan chan struct{}   // close channel
 	}
 )
 
-// MustNewConsumerManager  创建一个新的消费者管理器
+// MustNewConsumerManager
 func MustNewConsumerManager(cfg *StanqConfig, cq []*ConsumerQueue) queue.MessageQueue {
 	sc, err := stan.Connect(cfg.ClusterID, cfg.ClientID, cfg.Options...)
 	if err != nil {
@@ -65,7 +65,7 @@ func MustNewConsumerManager(cfg *StanqConfig, cq []*ConsumerQueue) queue.Message
 	return cm
 }
 
-// Start 开始消费者队列中的消息
+// Start consuming messages in the queue
 func (cm *ConsumerManager) Start() {
 	cm.mutex.RLock()
 	defer cm.mutex.RUnlock()
@@ -79,14 +79,14 @@ func (cm *ConsumerManager) Start() {
 	<-cm.doneChan
 }
 
-// Close 关闭连接
+// Stop close connect
 func (cm *ConsumerManager) Stop() {
 	if cm.conn != nil {
 		_ = cm.conn.Close()
 	}
 }
 
-// RegisterQueue 注册一个消费者队列
+// RegisterQueue Register a consumer queue
 func (cm *ConsumerManager) registerQueue(queue *ConsumerQueue) error {
 	cm.mutex.Lock()
 	defer cm.mutex.Unlock()
@@ -108,7 +108,7 @@ func (cm *ConsumerManager) registerQueue(queue *ConsumerQueue) error {
 	return nil
 }
 
-// 订阅消息
+// subscribe news
 func (cm *ConsumerManager) subscribe(queue ConsumerQueue) {
 	var opts []stan.SubscriptionOption
 	if queue.AckWaitTime > 0 {
@@ -149,7 +149,8 @@ func (cm *ConsumerManager) subscribe(queue ConsumerQueue) {
 	if err != nil {
 		logx.Errorf("error unsubscribing from queue %s: %v", queue.QueueName, err)
 	}
-	// 删除消费者队列
+
+	// delete consumer queue
 	cm.mutex.Lock()
 	defer cm.mutex.Unlock()
 	for i, q := range cm.queues {

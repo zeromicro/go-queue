@@ -19,6 +19,19 @@ func main() {
 		fmt.Println(err.Error())
 	}
 
+	publish, err := p.AsyncPublish(randSub(), randBody(), func(guid string, err error) {
+		if err != nil {
+			fmt.Printf("failed to publish message with guid %s: %v\n", guid, err)
+		} else {
+			fmt.Printf("message with guid %s published\n", guid)
+		}
+	})
+	if err != nil {
+		fmt.Println(err.Error())
+	} else {
+		fmt.Println(publish)
+	}
+
 	for {
 		time.Sleep(300 * time.Millisecond)
 		sub := randSub()
@@ -31,12 +44,9 @@ func main() {
 }
 
 func randSub() string {
-	rand.Seed(time.Now().UnixNano()) // 设置随机数种子
-	// 定义需要生成的字符集
+	rand.Seed(time.Now().UnixNano())
 	charSet := "abc"
-	// 定义需要生成的字符长度
 	length := 1
-	// 随机生成字符
 	result := make([]byte, length)
 	for i := range result {
 		result[i] = charSet[rand.Intn(len(charSet))]
