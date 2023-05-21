@@ -8,7 +8,7 @@ import (
 
 func main() {
 	conf := rabbitmq.RabbitConf{
-		Host:     "127.0.0.1",
+		Host:     "192.168.253.100",
 		Port:     5672,
 		Username: "guest",
 		Password: "guest",
