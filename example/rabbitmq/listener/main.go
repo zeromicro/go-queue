@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	amqp "github.com/rabbitmq/amqp091-go"
 
 	"github.com/zeromicro/go-queue/example/rabbitmq/listener/config"
 	"github.com/zeromicro/go-queue/rabbitmq"
@@ -27,7 +28,7 @@ func main() {
 type Handler struct {
 }
 
-func (h Handler) Consume(message string) error {
-	fmt.Printf("listener %s\n", message)
+func (h Handler) Consume(d amqp.Delivery) error {
+	fmt.Printf("listener %s\n", d.Body)
 	return nil
 }

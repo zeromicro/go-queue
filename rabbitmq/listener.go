@@ -9,10 +9,10 @@ import (
 )
 
 type (
-	ConsumeHandle func(message string) error
+	ConsumeHandle func(d amqp.Delivery) error
 
 	ConsumeHandler interface {
-		Consume(message string) error
+		Consume(d amqp.Delivery) error
 	}
 
 	RabbitListener struct {
@@ -43,6 +43,10 @@ func MustNewListener(listenerConf RabbitListenerConf, handler ConsumeHandler) qu
 
 func (q RabbitListener) Start() {
 	for _, que := range q.queues.ListenerQueues {
+		err := q.channel.Qos(que.PrefetchCount, 0, false)
+		if err != nil {
+			log.Fatalf("failed to qos, error: %v", err)
+		}
 		msg, err := q.channel.Consume(
 			que.Name,
 			"",
@@ -58,7 +62,7 @@ func (q RabbitListener) Start() {
 
 		go func() {
 			for d := range msg {
-				if err := q.handler.Consume(string(d.Body)); err != nil {
+				if err := q.handler.Consume(d); err != nil {
 					logx.Errorf("Error on consuming: %s, error: %v", string(d.Body), err)
 				}
 			}
