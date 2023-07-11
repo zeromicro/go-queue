@@ -27,10 +27,13 @@ type (
 
 func NewPusher(addrs []string, topic string, opts ...PushOption) *Pusher {
 	producer := &kafka.Writer{
-		Addr:        kafka.TCP(addrs...),
-		Topic:       topic,
+		Addr:  kafka.TCP(addrs...),
+		Topic: topic,
+		//todo move the follwoing to config kpusherConfig?
 		Balancer:    &kafka.LeastBytes{},
 		Compression: kafka.Snappy,
+		//if this is not set, the writer will not create a nonexistent topic
+		AllowAutoTopicCreation: true,
 	}
 	pusher := &Pusher{
 		produer: producer,
@@ -53,7 +56,7 @@ func (p *Pusher) Close() error {
 	if p.executor != nil {
 		p.executor.Flush()
 	}
-	
+
 	return p.produer.Close()
 }
 
