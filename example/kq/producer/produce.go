@@ -19,11 +19,11 @@ type message struct {
 }
 
 func main() {
-	pusher := kq.NewPusher([]string{
-		"127.0.0.1:19092",
-		"127.0.0.1:19092",
-		"127.0.0.1:19092",
-	}, "kq")
+	pusher := kq.NewPusher(kq.KqConf{
+		Brokers: []string{"127.0.0.1:19092", "127.0.0.1:19092", "127.0.0.1:19092"},
+		Topic:   "kq",
+	},
+	)
 
 	ticker := time.NewTicker(time.Millisecond)
 	for round := 0; round < 3; round++ {
