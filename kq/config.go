@@ -21,4 +21,5 @@ type KqConf struct {
 	Username    string `json:",optional"`
 	Password    string `json:",optional"`
 	ForceCommit bool   `json:",default=true"`
+	Mechanism   string `json:",optional"`
 }

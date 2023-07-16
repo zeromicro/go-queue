@@ -6,6 +6,9 @@ import (
 	"time"
 
 	"github.com/segmentio/kafka-go"
+	"github.com/segmentio/kafka-go/sasl"
+	"github.com/segmentio/kafka-go/sasl/plain"
+	"github.com/segmentio/kafka-go/sasl/scram"
 	"github.com/zeromicro/go-zero/core/executors"
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -25,17 +28,70 @@ type (
 	}
 )
 
-func NewPusher(addrs []string, topic string, opts ...PushOption) *Pusher {
-	producer := &kafka.Writer{
-		Addr:        kafka.TCP(addrs...),
-		Topic:       topic,
-		Balancer:    &kafka.LeastBytes{},
-		Compression: kafka.Snappy,
+func NewPusher(config KqConf, opts ...PushOption) *Pusher {
+	var producer *kafka.Writer
+	if config.Username != "" && config.Password != "" {
+		if config.Mechanism == "" {
+			// 使用SASL 明文认证
+			mechanism := plain.Mechanism{
+				Username: config.Username,
+				Password: config.Password,
+			}
+
+			sharedTransport := &kafka.Transport{
+				SASL: mechanism,
+			}
+
+			producer = &kafka.Writer{
+				Addr:      kafka.TCP(config.Brokers...),
+				Topic:     config.Topic,
+				Balancer:  &kafka.Hash{},
+				Transport: sharedTransport,
+			}
+		} else {
+			// 使用SASL SCRAM-SHA认证
+			var mechanism sasl.Mechanism
+			var err error
+			if config.Mechanism == "SCRAM-SHA-512" {
+				mechanism, err = scram.Mechanism(scram.SHA512, config.Username, config.Password)
+				if err != nil {
+					panic(err)
+				}
+			} else if config.Mechanism == "SCRAM-SHA-256" {
+				mechanism, err = scram.Mechanism(scram.SHA256, config.Username, config.Password)
+				if err != nil {
+					panic(err)
+				}
+			}
+			// Transports are responsible for managing connection pools and other resources,
+			// it's generally best to create a few of these and share them across your
+			// application.
+			sharedTransport := &kafka.Transport{
+				SASL: mechanism,
+			}
+
+			producer = &kafka.Writer{
+				Addr:      kafka.TCP(config.Brokers...),
+				Topic:     config.Topic,
+				Balancer:  &kafka.Hash{},
+				Transport: sharedTransport,
+			}
+		}
+	} else {
+		// 不使用认证
+		producer = &kafka.Writer{
+			Addr:        kafka.TCP(config.Brokers...),
+			Topic:       config.Topic,
+			Balancer:    &kafka.LeastBytes{},
+			Compression: kafka.Snappy,
+		}
 	}
+
 	pusher := &Pusher{
 		produer: producer,
-		topic:   topic,
+		topic:   config.Topic,
 	}
+
 	pusher.executor = executors.NewChunkExecutor(func(tasks []interface{}) {
 		chunk := make([]kafka.Message, len(tasks))
 		for i := range tasks {
@@ -53,7 +109,7 @@ func (p *Pusher) Close() error {
 	if p.executor != nil {
 		p.executor.Flush()
 	}
-	
+
 	return p.produer.Close()
 }
 

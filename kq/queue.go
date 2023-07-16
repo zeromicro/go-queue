@@ -9,7 +9,9 @@ import (
 	"github.com/segmentio/kafka-go"
 	_ "github.com/segmentio/kafka-go/gzip"
 	_ "github.com/segmentio/kafka-go/lz4"
+	"github.com/segmentio/kafka-go/sasl"
 	"github.com/segmentio/kafka-go/sasl/plain"
+	"github.com/segmentio/kafka-go/sasl/scram"
 	_ "github.com/segmentio/kafka-go/snappy"
 	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/core/queue"
@@ -114,11 +116,34 @@ func newKafkaQueue(c KqConf, handler ConsumeHandler, options queueOptions) queue
 		QueueCapacity:  options.queueCapacity,
 	}
 	if len(c.Username) > 0 && len(c.Password) > 0 {
-		readerConfig.Dialer = &kafka.Dialer{
-			SASLMechanism: plain.Mechanism{
-				Username: c.Username,
-				Password: c.Password,
-			},
+		if len(c.Mechanism) > 0 {
+			// 使用SASL SCRAM-SHA认证
+			var mechanism sasl.Mechanism
+			var err error
+			if c.Mechanism == "SCRAM-SHA-512" {
+				mechanism, err = scram.Mechanism(scram.SHA512, c.Username, c.Password)
+				if err != nil {
+					panic(err)
+				}
+			} else if c.Mechanism == "SCRAM-SHA-256" {
+				mechanism, err = scram.Mechanism(scram.SHA256, c.Username, c.Password)
+				if err != nil {
+					panic(err)
+				}
+			}
+			readerConfig.Dialer = &kafka.Dialer{
+				Timeout:       10 * time.Second,
+				DualStack:     true,
+				SASLMechanism: mechanism,
+			}
+		} else {
+			// 使用SASL PLAIN认证
+			readerConfig.Dialer = &kafka.Dialer{
+				SASLMechanism: plain.Mechanism{
+					Username: c.Username,
+					Password: c.Password,
+				},
+			}
 		}
 	}
 	consumer := kafka.NewReader(readerConfig)
