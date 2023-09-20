@@ -53,7 +53,7 @@ func (p *Pusher) Close() error {
 	if p.executor != nil {
 		p.executor.Flush()
 	}
-	
+
 	return p.produer.Close()
 }
 
@@ -64,6 +64,18 @@ func (p *Pusher) Name() string {
 func (p *Pusher) Push(v string) error {
 	msg := kafka.Message{
 		Key:   []byte(strconv.FormatInt(time.Now().UnixNano(), 10)),
+		Value: []byte(v),
+	}
+	if p.executor != nil {
+		return p.executor.Add(msg, len(v))
+	} else {
+		return p.produer.WriteMessages(context.Background(), msg)
+	}
+}
+
+func (p *Pusher) PushWithKey(k, v string) error {
+	msg := kafka.Message{
+		Key:   []byte(k),
 		Value: []byte(v),
 	}
 	if p.executor != nil {
