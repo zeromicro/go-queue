@@ -14,7 +14,7 @@ type (
 	PushOption func(options *chunkOptions)
 
 	Pusher struct {
-		produer  *kafka.Writer
+		producer *kafka.Writer
 		topic    string
 		executor *executors.ChunkExecutor
 	}
@@ -36,15 +36,15 @@ func NewPusher(addrs []string, topic string, opts ...PushOption) *Pusher {
 		AllowAutoTopicCreation: true,
 	}
 	pusher := &Pusher{
-		produer: producer,
-		topic:   topic,
+		producer: producer,
+		topic:    topic,
 	}
 	pusher.executor = executors.NewChunkExecutor(func(tasks []interface{}) {
 		chunk := make([]kafka.Message, len(tasks))
 		for i := range tasks {
 			chunk[i] = tasks[i].(kafka.Message)
 		}
-		if err := pusher.produer.WriteMessages(context.Background(), chunk...); err != nil {
+		if err := pusher.producer.WriteMessages(context.Background(), chunk...); err != nil {
 			logx.Error(err)
 		}
 	}, newOptions(opts)...)
@@ -57,7 +57,7 @@ func (p *Pusher) Close() error {
 		p.executor.Flush()
 	}
 
-	return p.produer.Close()
+	return p.producer.Close()
 }
 
 func (p *Pusher) Name() string {
@@ -72,7 +72,7 @@ func (p *Pusher) Push(v string) error {
 	if p.executor != nil {
 		return p.executor.Add(msg, len(v))
 	} else {
-		return p.produer.WriteMessages(context.Background(), msg)
+		return p.producer.WriteMessages(context.Background(), msg)
 	}
 }
 
