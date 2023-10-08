@@ -22,6 +22,7 @@ type (
 	pushOptions struct {
 		// kafka.Writer options
 		allowAutoTopicCreation bool
+		balancer               kafka.Balancer
 
 		// executors.ChunkExecutor options
 		chunkSize     int
@@ -45,6 +46,9 @@ func NewPusher(addrs []string, topic string, opts ...PushOption) *Pusher {
 
 	// apply kafka.Writer options
 	producer.AllowAutoTopicCreation = options.allowAutoTopicCreation
+	if options.balancer != nil {
+		producer.Balancer = options.balancer
+	}
 
 	// apply ChunkExecutor options
 	var chunkOpts []executors.ChunkOption
@@ -137,5 +141,12 @@ func WithFlushInterval(interval time.Duration) PushOption {
 func WithAllowAutoTopicCreation() PushOption {
 	return func(options *pushOptions) {
 		options.allowAutoTopicCreation = true
+	}
+}
+
+// WithBalancer customizes the Pusher with the given balancer.
+func WithBalancer(balancer kafka.Balancer) PushOption {
+	return func(options *pushOptions) {
+		options.balancer = balancer
 	}
 }
