@@ -12,6 +12,7 @@ type KqConf struct {
 	Brokers     []string
 	Group       string
 	Topic       string
+	CaFile      string `json:",optional"`
 	Offset      string `json:",options=first|last,default=last"`
 	Conns       int    `json:",default=1"`
 	Consumers   int    `json:",default=8"`
