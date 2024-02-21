@@ -2,8 +2,11 @@ package kq
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"io"
 	"log"
+	"os"
 	"time"
 
 	"github.com/segmentio/kafka-go"
@@ -119,6 +122,23 @@ func newKafkaQueue(c KqConf, handler ConsumeHandler, options queueOptions) queue
 				Username: c.Username,
 				Password: c.Password,
 			},
+		}
+	}
+	if len(c.CaFile) > 0 {
+		caCert, err := os.ReadFile(c.CaFile)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		caCertPool := x509.NewCertPool()
+		ok := caCertPool.AppendCertsFromPEM(caCert)
+		if !ok {
+			log.Fatal(err)
+		}
+
+		readerConfig.Dialer.TLS = &tls.Config{
+			RootCAs:            caCertPool,
+			InsecureSkipVerify: true,
 		}
 	}
 	consumer := kafka.NewReader(readerConfig)
