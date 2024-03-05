@@ -1,10 +1,8 @@
 package dq
 
 import (
-	"bytes"
 	"log"
 	"math/rand"
-	"strconv"
 	"strings"
 	"time"
 
@@ -56,9 +54,8 @@ func NewProducer(beanstalks []Beanstalk) Producer {
 }
 
 func (p *producerCluster) At(body []byte, at time.Time) (string, error) {
-	wrapped := p.wrap(body, at)
 	return p.insert(func(node Producer) (string, error) {
-		return node.At(wrapped, at)
+		return node.At(body, at)
 	})
 }
 
@@ -73,9 +70,8 @@ func (p *producerCluster) Close() error {
 }
 
 func (p *producerCluster) Delay(body []byte, delay time.Duration) (string, error) {
-	wrapped := p.wrap(body, time.Now().Add(delay))
 	return p.insert(func(node Producer) (string, error) {
-		return node.Delay(wrapped, delay)
+		return node.Delay(body, delay)
 	})
 }
 
@@ -155,12 +151,4 @@ func (p *producerCluster) insert(fn func(node Producer) (string, error)) (string
 	}
 
 	return "", be.Err()
-}
-
-func (p *producerCluster) wrap(body []byte, at time.Time) []byte {
-	var builder bytes.Buffer
-	builder.WriteString(strconv.FormatInt(at.UnixNano(), 10))
-	builder.WriteByte(timeSep)
-	builder.Write(body)
-	return builder.Bytes()
 }
