@@ -12,7 +12,6 @@ import (
 
 const (
 	expiration = 3600 // seconds
-	guardValue = "1"
 	tolerance  = time.Minute * 30
 )
 
@@ -51,7 +50,9 @@ func (c *consumerCluster) Consume(consume Consume) {
 			return
 		}
 
-		ok, err := c.red.SetnxEx(key, guardValue, expiration)
+		redisLock := redis.NewRedisLock(c.red, key)
+		redisLock.SetExpire(expiration)
+		ok, err := redisLock.Acquire()
 		if err != nil {
 			logx.Error(err)
 		} else if ok {
