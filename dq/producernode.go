@@ -1,6 +1,7 @@
 package dq
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"strconv"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"github.com/beanstalkd/go-beanstalk"
+	"github.com/zeromicro/go-zero/core/logx"
 )
 
 var ErrTimeBeforeNow = errors.New("can't schedule task to past time")
@@ -46,24 +48,38 @@ func (p *producerNode) Delay(body []byte, delay time.Duration) (string, error) {
 		return "", err
 	}
 
-	id, err := conn.Put(body, PriNormal, delay, defaultTimeToRun)
+	wrapped := p.wrap(body, time.Now().Add(delay))
+	id, err := conn.Put(wrapped, PriNormal, delay, defaultTimeToRun)
 	if err == nil {
 		return fmt.Sprintf("%s/%s/%d", p.endpoint, p.tube, id), nil
 	}
 
 	// the error can only be beanstalk.NameError or beanstalk.ConnError
 	// just return when the error is beanstalk.NameError, don't reset
-	switch cerr := err.(type) {
-	case beanstalk.ConnError:
-		switch cerr.Err {
-		case beanstalk.ErrBadChar, beanstalk.ErrBadFormat, beanstalk.ErrBuried, beanstalk.ErrDeadline,
-			beanstalk.ErrDraining, beanstalk.ErrEmpty, beanstalk.ErrInternal, beanstalk.ErrJobTooBig,
-			beanstalk.ErrNoCRLF, beanstalk.ErrNotFound, beanstalk.ErrNotIgnored, beanstalk.ErrTooLong:
+	var cerr beanstalk.ConnError
+	switch {
+	case errors.As(err, &cerr):
+		switch {
+		case
+			errors.Is(cerr.Err, beanstalk.ErrBadChar),
+			errors.Is(cerr.Err, beanstalk.ErrBadFormat),
+			errors.Is(cerr.Err, beanstalk.ErrBuried),
+			errors.Is(cerr.Err, beanstalk.ErrDeadline),
+			errors.Is(cerr.Err, beanstalk.ErrDraining),
+			errors.Is(cerr.Err, beanstalk.ErrEmpty),
+			errors.Is(cerr.Err, beanstalk.ErrInternal),
+			errors.Is(cerr.Err, beanstalk.ErrJobTooBig),
+			errors.Is(cerr.Err, beanstalk.ErrNoCRLF),
+			errors.Is(cerr.Err, beanstalk.ErrNotFound),
+			errors.Is(cerr.Err, beanstalk.ErrNotIgnored),
+			errors.Is(cerr.Err, beanstalk.ErrTooLong):
 			// won't reset
 		default:
 			// beanstalk.ErrOOM, beanstalk.ErrTimeout, beanstalk.ErrUnknown and other errors
 			p.conn.reset()
 		}
+	default:
+		logx.Error(err)
 	}
 
 	return "", err
@@ -95,4 +111,12 @@ func (p *producerNode) Revoke(jointId string) error {
 
 	// if not in this beanstalk, ignore
 	return nil
+}
+
+func (p *producerNode) wrap(body []byte, at time.Time) []byte {
+	var builder bytes.Buffer
+	builder.WriteString(strconv.FormatInt(at.UnixNano(), 10))
+	builder.WriteByte(timeSep)
+	builder.Write(body)
+	return builder.Bytes()
 }
