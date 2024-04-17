@@ -11,8 +11,9 @@ import (
 )
 
 const (
-	expiration = 3600 // seconds
-	tolerance  = time.Minute * 30
+	expiration     = 3600 // seconds
+	tolerance      = time.Minute * 30
+	redisKeyPrefix = "go-queue.dq:"
 )
 
 var maxCheckBytes = getMaxTimeLen()
@@ -48,7 +49,7 @@ func (c *consumerCluster) Consume(consume Consume) {
 			logx.Errorf("discarded: %q", string(body))
 			return
 		}
-		key := hash.Md5Hex(body)
+		key := redisKeyPrefix + hash.Md5Hex(body)
 
 		redisLock := redis.NewRedisLock(c.red, key)
 		redisLock.SetExpire(expiration)
