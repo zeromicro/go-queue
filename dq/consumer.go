@@ -43,12 +43,12 @@ func NewConsumer(c DqConf) Consumer {
 
 func (c *consumerCluster) Consume(consume Consume) {
 	guardedConsume := func(body []byte) {
-		key := hash.Md5Hex(body)
 		body, ok := c.unwrap(body)
 		if !ok {
 			logx.Errorf("discarded: %q", string(body))
 			return
 		}
+		key := hash.Md5Hex(body)
 
 		redisLock := redis.NewRedisLock(c.red, key)
 		redisLock.SetExpire(expiration)
