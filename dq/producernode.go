@@ -28,17 +28,7 @@ func NewProducerNode(endpoint, tube string) Producer {
 }
 
 func (p *producerNode) At(body []byte, at time.Time) (string, error) {
-	return p.atWithWrapper(wrap(body, at), at)
-}
-
-func (p *producerNode) atWithWrapper(body []byte, at time.Time) (string, error) {
-	now := time.Now()
-	if at.Before(now) {
-		return "", ErrTimeBeforeNow
-	}
-
-	duration := at.Sub(now)
-	return p.delayWithWrapper(body, duration)
+	return p.at(wrap(body, at), at)
 }
 
 func (p *producerNode) Close() error {
@@ -46,10 +36,48 @@ func (p *producerNode) Close() error {
 }
 
 func (p *producerNode) Delay(body []byte, delay time.Duration) (string, error) {
-	return p.delayWithWrapper(wrap(body, time.Now().Add(delay)), delay)
+	return p.delay(wrap(body, time.Now().Add(delay)), delay)
 }
 
-func (p *producerNode) delayWithWrapper(body []byte, delay time.Duration) (string, error) {
+func (p *producerNode) Revoke(jointId string) error {
+	ids := strings.Split(jointId, idSep)
+	for _, id := range ids {
+		fields := strings.Split(id, "/")
+		if len(fields) < 3 {
+			continue
+		}
+		if fields[0] != p.endpoint || fields[1] != p.tube {
+			continue
+		}
+
+		conn, err := p.conn.get()
+		if err != nil {
+			return err
+		}
+
+		n, err := strconv.ParseUint(fields[2], 10, 64)
+		if err != nil {
+			return err
+		}
+
+		return conn.Delete(n)
+	}
+
+	// if not in this beanstalk, ignore
+	return nil
+}
+
+func (p *producerNode) at(body []byte, at time.Time) (string, error) {
+	now := time.Now()
+	if at.Before(now) {
+		return "", ErrTimeBeforeNow
+	}
+
+	duration := at.Sub(now)
+	return p.delay(body, duration)
+}
+
+func (p *producerNode) delay(body []byte, delay time.Duration) (string, error) {
 	conn, err := p.conn.get()
 	if err != nil {
 		return "", err
@@ -89,32 +117,4 @@ func (p *producerNode) delayWithWrapper(body []byte, delay time.Duration) (strin
 	}
 
 	return "", err
-}
-
-func (p *producerNode) Revoke(jointId string) error {
-	ids := strings.Split(jointId, idSep)
-	for _, id := range ids {
-		fields := strings.Split(id, "/")
-		if len(fields) < 3 {
-			continue
-		}
-		if fields[0] != p.endpoint || fields[1] != p.tube {
-			continue
-		}
-
-		conn, err := p.conn.get()
-		if err != nil {
-			return err
-		}
-
-		n, err := strconv.ParseUint(fields[2], 10, 64)
-		if err != nil {
-			return err
-		}
-
-		return conn.Delete(n)
-	}
-
-	// if not in this beanstalk, ignore
-	return nil
 }

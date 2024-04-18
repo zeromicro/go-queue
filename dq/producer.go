@@ -19,12 +19,13 @@ const (
 
 type (
 	Producer interface {
-		atWithWrapper(body []byte, at time.Time) (string, error)
 		At(body []byte, at time.Time) (string, error)
 		Close() error
-		delayWithWrapper(body []byte, delay time.Duration) (string, error)
 		Delay(body []byte, delay time.Duration) (string, error)
 		Revoke(ids string) error
+
+		at(body []byte, at time.Time) (string, error)
+		delay(body []byte, delay time.Duration) (string, error)
 	}
 
 	producerCluster struct {
@@ -57,9 +58,7 @@ func NewProducer(beanstalks []Beanstalk) Producer {
 
 func (p *producerCluster) At(body []byte, at time.Time) (string, error) {
 	wrapped := wrap(body, at)
-	return p.insert(func(node Producer) (string, error) {
-		return node.atWithWrapper(wrapped, at)
-	})
+	return p.at(wrapped, at)
 }
 
 func (p *producerCluster) Close() error {
@@ -74,9 +73,7 @@ func (p *producerCluster) Close() error {
 
 func (p *producerCluster) Delay(body []byte, delay time.Duration) (string, error) {
 	wrapped := wrap(body, time.Now().Add(delay))
-	return p.insert(func(node Producer) (string, error) {
-		return node.delayWithWrapper(wrapped, delay)
-	})
+	return p.delay(wrapped, delay)
 }
 
 func (p *producerCluster) Revoke(ids string) error {
@@ -98,8 +95,20 @@ func (p *producerCluster) Revoke(ids string) error {
 	return be.Err()
 }
 
+func (p *producerCluster) at(body []byte, at time.Time) (string, error) {
+	return p.insert(func(node Producer) (string, error) {
+		return node.at(body, at)
+	})
+}
+
 func (p *producerCluster) cloneNodes() []Producer {
 	return append([]Producer(nil), p.nodes...)
+}
+
+func (p *producerCluster) delay(body []byte, delay time.Duration) (string, error) {
+	return p.insert(func(node Producer) (string, error) {
+		return node.delay(body, delay)
+	})
 }
 
 func (p *producerCluster) getWriteNodes() []Producer {
@@ -155,16 +164,4 @@ func (p *producerCluster) insert(fn func(node Producer) (string, error)) (string
 	}
 
 	return "", be.Err()
-}
-
-func (p *producerCluster) atWithWrapper(body []byte, at time.Time) (string, error) {
-	return p.insert(func(node Producer) (string, error) {
-		return node.atWithWrapper(body, at)
-	})
-}
-
-func (p *producerCluster) delayWithWrapper(body []byte, delay time.Duration) (string, error) {
-	return p.insert(func(node Producer) (string, error) {
-		return node.delayWithWrapper(body, delay)
-	})
 }
