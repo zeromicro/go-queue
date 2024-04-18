@@ -1,7 +1,6 @@
 package dq
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"strconv"
@@ -29,13 +28,17 @@ func NewProducerNode(endpoint, tube string) Producer {
 }
 
 func (p *producerNode) At(body []byte, at time.Time) (string, error) {
+	return p.atWithWrapper(wrap(body, at), at)
+}
+
+func (p *producerNode) atWithWrapper(body []byte, at time.Time) (string, error) {
 	now := time.Now()
 	if at.Before(now) {
 		return "", ErrTimeBeforeNow
 	}
 
 	duration := at.Sub(now)
-	return p.Delay(body, duration)
+	return p.delayWithWrapper(body, duration)
 }
 
 func (p *producerNode) Close() error {
@@ -43,13 +46,16 @@ func (p *producerNode) Close() error {
 }
 
 func (p *producerNode) Delay(body []byte, delay time.Duration) (string, error) {
+	return p.delayWithWrapper(wrap(body, time.Now().Add(delay)), delay)
+}
+
+func (p *producerNode) delayWithWrapper(body []byte, delay time.Duration) (string, error) {
 	conn, err := p.conn.get()
 	if err != nil {
 		return "", err
 	}
 
-	wrapped := p.wrap(body, time.Now().Add(delay))
-	id, err := conn.Put(wrapped, PriNormal, delay, defaultTimeToRun)
+	id, err := conn.Put(body, PriNormal, delay, defaultTimeToRun)
 	if err == nil {
 		return fmt.Sprintf("%s/%s/%d", p.endpoint, p.tube, id), nil
 	}
@@ -111,12 +117,4 @@ func (p *producerNode) Revoke(jointId string) error {
 
 	// if not in this beanstalk, ignore
 	return nil
-}
-
-func (p *producerNode) wrap(body []byte, at time.Time) []byte {
-	var builder bytes.Buffer
-	builder.WriteString(strconv.FormatInt(at.UnixNano(), 10))
-	builder.WriteByte(timeSep)
-	builder.Write(body)
-	return builder.Bytes()
 }
