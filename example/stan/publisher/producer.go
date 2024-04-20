@@ -44,12 +44,13 @@ func main() {
 }
 
 func randSub() string {
-	rand.Seed(time.Now().UnixNano())
+	source := rand.NewSource(time.Now().UnixNano())
+    rng := rand.New(source)
 	charSet := "abc"
 	length := 1
 	result := make([]byte, length)
 	for i := range result {
-		result[i] = charSet[rand.Intn(len(charSet))]
+		result[i] = charSet[rng.Intn(len(charSet))]
 	}
 	return string(result)
 }

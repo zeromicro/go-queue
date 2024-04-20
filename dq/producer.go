@@ -33,8 +33,11 @@ type (
 	}
 )
 
+var rng *rand.Rand
+
 func init() {
-	rand.Seed(time.Now().UnixNano())
+	source := rand.NewSource(time.Now().UnixNano())
+	rng = rand.New(source)
 }
 
 func NewProducer(beanstalks []Beanstalk) Producer {
@@ -117,7 +120,7 @@ func (p *producerCluster) getWriteNodes() []Producer {
 	}
 
 	nodes := p.cloneNodes()
-	rand.Shuffle(len(nodes), func(i, j int) {
+	rng.Shuffle(len(nodes), func(i, j int) {
 		nodes[i], nodes[j] = nodes[j], nodes[i]
 	})
 	return nodes[:replicaNodes]
