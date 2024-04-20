@@ -49,9 +49,11 @@ func main() {
 }
 
 func randSub() string {
-	rand.Seed(time.Now().UnixNano())
+	source := rand.NewSource(time.Now().UnixNano())
+    // 创建一个新的随机数生成器
+    rng := rand.New(source)
 	strings := []string{"ccc", "ddd", "eee"}
-	randomIndex := rand.Intn(len(strings))
+	randomIndex := rng.Intn(len(strings))
 	return strings[randomIndex]
 }
 
