@@ -22,6 +22,7 @@ type (
 	pushOptions struct {
 		// kafka.Writer options
 		allowAutoTopicCreation bool
+		balancer               kafka.Balancer
 
 		// executors.ChunkExecutor options
 		chunkSize     int
@@ -45,6 +46,9 @@ func NewPusher(addrs []string, topic string, opts ...PushOption) *Pusher {
 
 	// apply kafka.Writer options
 	producer.AllowAutoTopicCreation = options.allowAutoTopicCreation
+	if options.balancer != nil {
+		producer.Balancer = options.balancer
+	}
 
 	// apply ChunkExecutor options
 	var chunkOpts []executors.ChunkOption
@@ -99,6 +103,26 @@ func (p *Pusher) Push(v string) error {
 	}
 }
 
+// SetWriterBalancer set kafka-go custom writer balancer.
+func (p *Pusher) SetWriterBalancer(balancer kafka.Balancer) {
+	if p.producer != nil {
+		p.producer.Balancer = balancer
+	}
+}
+
+// PushWithKey sends a message to the Kafka topic with custom message key.
+func (p *Pusher) PushWithKey(k, v string) error {
+	msg := kafka.Message{
+		Key:   []byte(k), // custom message key
+		Value: []byte(v),
+	}
+	if p.executor != nil {
+		return p.executor.Add(msg, len(v))
+	} else {
+		return p.producer.WriteMessages(context.Background(), msg)
+	}
+}
+
 // WithChunkSize customizes the Pusher with the given chunk size.
 func WithChunkSize(chunkSize int) PushOption {
 	return func(options *pushOptions) {
@@ -117,5 +141,12 @@ func WithFlushInterval(interval time.Duration) PushOption {
 func WithAllowAutoTopicCreation() PushOption {
 	return func(options *pushOptions) {
 		options.allowAutoTopicCreation = true
+	}
+}
+
+// WithBalancer customizes the Pusher with the given balancer.
+func WithBalancer(balancer kafka.Balancer) PushOption {
+	return func(options *pushOptions) {
+		options.balancer = balancer
 	}
 }
