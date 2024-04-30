@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"io"
 	"log"
 	"os"
@@ -58,6 +59,7 @@ type (
 		channel          chan kafka.Message
 		producerRoutines *threading.RoutineGroup
 		consumerRoutines *threading.RoutineGroup
+		commitRunner     *threading.StableRunner[kafka.Message, kafka.Message]
 		metrics          *stat.Metrics
 		errorHandler     ConsumeErrorHandler
 	}
@@ -147,7 +149,7 @@ func newKafkaQueue(c KqConf, handler ConsumeHandler, options queueOptions) queue
 	}
 	consumer := kafka.NewReader(readerConfig)
 
-	return &kafkaQueue{
+	q := &kafkaQueue{
 		c:                c,
 		consumer:         consumer,
 		handler:          handler,
@@ -157,15 +159,37 @@ func newKafkaQueue(c KqConf, handler ConsumeHandler, options queueOptions) queue
 		metrics:          options.metrics,
 		errorHandler:     options.errorHandler,
 	}
+	q.commitRunner = threading.NewStableRunner(func(msg kafka.Message) kafka.Message {
+		if err := q.consumeOne(string(msg.Key), string(msg.Value)); err != nil {
+			if q.errorHandler != nil {
+				q.errorHandler(msg, err)
+			}
+		}
+
+		return msg
+	})
+
+	return q
 }
 
 func (q *kafkaQueue) Start() {
-	q.startConsumers()
-	q.startProducers()
+	if q.c.CommitInOrder {
+		go q.commitInOrder()
 
-	q.producerRoutines.Wait()
-	close(q.channel)
-	q.consumerRoutines.Wait()
+		if err := q.consume(func(msg kafka.Message) {
+			if e := q.commitRunner.Push(msg); e != nil {
+				logx.Error(e)
+			}
+		}); err != nil {
+			logx.Error(err)
+		}
+	} else {
+		q.startConsumers()
+		q.startProducers()
+		q.producerRoutines.Wait()
+		close(q.channel)
+		q.consumerRoutines.Wait()
+	}
 }
 
 func (q *kafkaQueue) Stop() {
@@ -214,21 +238,44 @@ func (q *kafkaQueue) startConsumers() {
 func (q *kafkaQueue) startProducers() {
 	for i := 0; i < q.c.Consumers; i++ {
 		q.producerRoutines.Run(func() {
-			for {
-				msg, err := q.consumer.FetchMessage(context.Background())
-				// io.EOF means consumer closed
-				// io.ErrClosedPipe means committing messages on the consumer,
-				// kafka will refire the messages on uncommitted messages, ignore
-				if err == io.EOF || err == io.ErrClosedPipe {
-					return
-				}
-				if err != nil {
-					logx.Errorf("Error on reading message, %q", err.Error())
-					continue
-				}
+			if err := q.consume(func(msg kafka.Message) {
 				q.channel <- msg
+			}); err != nil {
+				return
 			}
 		})
+	}
+}
+
+func (q *kafkaQueue) consume(handle func(msg kafka.Message)) error {
+	for {
+		msg, err := q.consumer.FetchMessage(context.Background())
+		// io.EOF means consumer closed
+		// io.ErrClosedPipe means committing messages on the consumer,
+		// kafka will refire the messages on uncommitted messages, ignore
+		if err == io.EOF || errors.Is(err, io.ErrClosedPipe) {
+			return err
+		}
+		if err != nil {
+			logx.Errorf("Error on reading message, %q", err.Error())
+			continue
+		}
+
+		handle(msg)
+	}
+}
+
+func (q *kafkaQueue) commitInOrder() {
+	for {
+		msg, err := q.commitRunner.Get()
+		if err != nil {
+			logx.Error(err)
+			return
+		}
+
+		if err := q.consumer.CommitMessages(context.Background(), msg); err != nil {
+			logx.Errorf("commit failed, error: %v", err)
+		}
 	}
 }
 
