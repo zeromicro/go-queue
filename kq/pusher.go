@@ -26,6 +26,9 @@ type (
 		// executors.ChunkExecutor options
 		chunkSize     int
 		flushInterval time.Duration
+
+		// enableSyncPush is used to enable sync push
+		enableSyncPush bool
 	}
 )
 
@@ -46,6 +49,16 @@ func NewPusher(addrs []string, topic string, opts ...PushOption) *Pusher {
 	// apply kafka.Writer options
 	producer.AllowAutoTopicCreation = options.allowAutoTopicCreation
 
+	pusher := &Pusher{
+		producer: producer,
+		topic:    topic,
+	}
+
+	// if enableSyncPush is true, return the pusher directly
+	if options.enableSyncPush {
+		return pusher
+	}
+
 	// apply ChunkExecutor options
 	var chunkOpts []executors.ChunkOption
 	if options.chunkSize > 0 {
@@ -55,10 +68,6 @@ func NewPusher(addrs []string, topic string, opts ...PushOption) *Pusher {
 		chunkOpts = append(chunkOpts, executors.WithFlushInterval(options.flushInterval))
 	}
 
-	pusher := &Pusher{
-		producer: producer,
-		topic:    topic,
-	}
 	pusher.executor = executors.NewChunkExecutor(func(tasks []interface{}) {
 		chunk := make([]kafka.Message, len(tasks))
 		for i := range tasks {
@@ -117,5 +126,12 @@ func WithFlushInterval(interval time.Duration) PushOption {
 func WithAllowAutoTopicCreation() PushOption {
 	return func(options *pushOptions) {
 		options.allowAutoTopicCreation = true
+	}
+}
+
+// WithEnableSyncPush enables sync push.
+func WithEnableSyncPush() PushOption {
+	return func(options *pushOptions) {
+		options.enableSyncPush = true
 	}
 }
