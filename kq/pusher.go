@@ -29,7 +29,7 @@ type (
 		chunkSize     int
 		flushInterval time.Duration
 
-		// enable sync push
+		// enableSyncPush is used to enable sync push
 		enableSyncPush bool
 	}
 )
@@ -56,7 +56,7 @@ func NewPusher(addrs []string, topic string, opts ...PushOption) *Pusher {
 		topic:    topic,
 	}
 
-	// apply sync push
+	// if enableSyncPush is true, return the pusher directly
 	if options.enableSyncPush {
 		return pusher
 	}
