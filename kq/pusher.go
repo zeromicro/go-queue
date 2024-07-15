@@ -6,8 +6,10 @@ import (
 	"time"
 
 	"github.com/segmentio/kafka-go"
+	"github.com/zeromicro/go-queue/kq/internal"
 	"github.com/zeromicro/go-zero/core/executors"
 	"github.com/zeromicro/go-zero/core/logx"
+	"go.opentelemetry.io/otel"
 )
 
 type (
@@ -96,15 +98,21 @@ func (p *Pusher) Name() string {
 }
 
 // Push sends a message to the Kafka topic.
-func (p *Pusher) Push(v string) error {
+func (p *Pusher) Push(ctx context.Context, v string) error {
 	msg := kafka.Message{
 		Key:   []byte(strconv.FormatInt(time.Now().UnixNano(), 10)), // current timestamp
 		Value: []byte(v),
 	}
+
+	// wrap message into message carrier
+	mc := internal.NewMessageCarrier(internal.NewMessage(&msg))
+	// inject trace context into message
+	otel.GetTextMapPropagator().Inject(ctx, mc)
+
 	if p.executor != nil {
 		return p.executor.Add(msg, len(v))
 	} else {
-		return p.producer.WriteMessages(context.Background(), msg)
+		return p.producer.WriteMessages(ctx, msg)
 	}
 }
 
@@ -129,8 +137,8 @@ func WithAllowAutoTopicCreation() PushOption {
 	}
 }
 
-// WithEnableSyncPush enables sync push.
-func WithEnableSyncPush() PushOption {
+// WithSyncPush enables the Pusher to push messages synchronously.
+func WithSyncPush() PushOption {
 	return func(options *pushOptions) {
 		options.enableSyncPush = true
 	}
