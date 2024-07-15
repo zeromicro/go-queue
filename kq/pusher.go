@@ -29,8 +29,8 @@ type (
 		chunkSize     int
 		flushInterval time.Duration
 
-		// enableSyncPush is used to enable sync push
-		enableSyncPush bool
+		// syncPush is used to enable sync push
+		syncPush bool
 	}
 )
 
@@ -56,8 +56,8 @@ func NewPusher(addrs []string, topic string, opts ...PushOption) *Pusher {
 		topic:    topic,
 	}
 
-	// if enableSyncPush is true, return the pusher directly
-	if options.enableSyncPush {
+	// if syncPush is true, return the pusher directly
+	if options.syncPush {
 		return pusher
 	}
 
@@ -140,6 +140,6 @@ func WithAllowAutoTopicCreation() PushOption {
 // WithSyncPush enables the Pusher to push messages synchronously.
 func WithSyncPush() PushOption {
 	return func(options *pushOptions) {
-		options.enableSyncPush = true
+		options.syncPush = true
 	}
 }
