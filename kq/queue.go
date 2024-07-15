@@ -159,15 +159,17 @@ func newKafkaQueue(c KqConf, handler ConsumeHandler, options queueOptions) queue
 		metrics:          options.metrics,
 		errorHandler:     options.errorHandler,
 	}
-	q.commitRunner = threading.NewStableRunner(func(msg kafka.Message) kafka.Message {
-		if err := q.consumeOne(context.Background(), string(msg.Key), string(msg.Value)); err != nil {
-			if q.errorHandler != nil {
-				q.errorHandler(context.Background(), msg, err)
+	if c.CommitInOrder {
+		q.commitRunner = threading.NewStableRunner(func(msg kafka.Message) kafka.Message {
+			if err := q.consumeOne(context.Background(), string(msg.Key), string(msg.Value)); err != nil {
+				if q.errorHandler != nil {
+					q.errorHandler(context.Background(), msg, err)
+				}
 			}
-		}
 
-		return msg
-	})
+			return msg
+		})
+	}
 
 	return q
 }
