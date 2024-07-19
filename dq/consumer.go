@@ -44,7 +44,7 @@ func NewConsumer(c DqConf) Consumer {
 func (c *consumerCluster) Consume(consume Consume) {
 	guardedConsume := func(body []byte) {
 		key := hash.Md5Hex(body)
-		body, ok := c.unwrap(body)
+		taskBody, ok := c.unwrap(body)
 		if !ok {
 			logx.Errorf("discarded: %q", string(body))
 			return
@@ -56,7 +56,7 @@ func (c *consumerCluster) Consume(consume Consume) {
 		if err != nil {
 			logx.Error(err)
 		} else if ok {
-			consume(body)
+			consume(taskBody)
 		}
 	}
 
