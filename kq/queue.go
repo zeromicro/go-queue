@@ -192,7 +192,7 @@ func (q *kafkaQueue) Start() {
 		close(q.channel)
 		q.consumerRoutines.Wait()
     
-    logx.Infof("Consumer %s is closed", q.c.Name)
+		logx.Infof("Consumer %s is closed", q.c.Name)
 	}
 }
 
