@@ -191,6 +191,8 @@ func (q *kafkaQueue) Start() {
 		q.producerRoutines.Wait()
 		close(q.channel)
 		q.consumerRoutines.Wait()
+    
+		logx.Infof("Consumer %s is closed", q.c.Name)
 	}
 }
 
@@ -239,10 +241,12 @@ func (q *kafkaQueue) startConsumers() {
 
 func (q *kafkaQueue) startProducers() {
 	for i := 0; i < q.c.Consumers; i++ {
+		i := i
 		q.producerRoutines.Run(func() {
 			if err := q.consume(func(msg kafka.Message) {
 				q.channel <- msg
 			}); err != nil {
+				logx.Infof("Consumer %s-%d is closed, error: %q", q.c.Name, i, err.Error())
 				return
 			}
 		})
