@@ -246,6 +246,7 @@ func (q *kafkaQueue) startProducers() {
 			if err := q.consume(func(msg kafka.Message) {
 				q.channel <- msg
 			}); err != nil {
+				logx.Infof("Consumer %s-%d is closed, error: %q", q.c.Name, i, err.Error())
 				return
 			}
 		})
@@ -259,7 +260,6 @@ func (q *kafkaQueue) consume(handle func(msg kafka.Message)) error {
 		// io.ErrClosedPipe means committing messages on the consumer,
 		// kafka will refire the messages on uncommitted messages, ignore
 		if err == io.EOF || errors.Is(err, io.ErrClosedPipe) {
-			logx.Infof("Consumer %s-%d is closed, error: %q", q.c.Name, i, err.Error())
 			return err
 		}
 		if err != nil {
