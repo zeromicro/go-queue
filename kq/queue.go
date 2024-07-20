@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"io"
 	"log"
 	"os"
@@ -14,12 +15,16 @@ import (
 	_ "github.com/segmentio/kafka-go/lz4"
 	"github.com/segmentio/kafka-go/sasl/plain"
 	_ "github.com/segmentio/kafka-go/snappy"
+	"github.com/zeromicro/go-queue/kq/internal"
+	"github.com/zeromicro/go-zero/core/contextx"
+	"github.com/zeromicro/go-zero/core/logc"
 	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/core/queue"
 	"github.com/zeromicro/go-zero/core/service"
 	"github.com/zeromicro/go-zero/core/stat"
 	"github.com/zeromicro/go-zero/core/threading"
 	"github.com/zeromicro/go-zero/core/timex"
+	"go.opentelemetry.io/otel"
 )
 
 const (
@@ -29,12 +34,12 @@ const (
 )
 
 type (
-	ConsumeHandle func(key, value string) error
+	ConsumeHandle func(ctx context.Context, key, value string) error
 
-	ConsumeErrorHandler func(msg kafka.Message, err error)
+	ConsumeErrorHandler func(ctx context.Context, msg kafka.Message, err error)
 
 	ConsumeHandler interface {
-		Consume(key, value string) error
+		Consume(ctx context.Context, key, value string) error
 	}
 
 	queueOptions struct {
@@ -54,6 +59,7 @@ type (
 		channel          chan kafka.Message
 		producerRoutines *threading.RoutineGroup
 		consumerRoutines *threading.RoutineGroup
+		commitRunner     *threading.StableRunner[kafka.Message, kafka.Message]
 		metrics          *stat.Metrics
 		errorHandler     ConsumeErrorHandler
 	}
@@ -143,7 +149,7 @@ func newKafkaQueue(c KqConf, handler ConsumeHandler, options queueOptions) queue
 	}
 	consumer := kafka.NewReader(readerConfig)
 
-	return &kafkaQueue{
+	q := &kafkaQueue{
 		c:                c,
 		consumer:         consumer,
 		handler:          handler,
@@ -153,17 +159,41 @@ func newKafkaQueue(c KqConf, handler ConsumeHandler, options queueOptions) queue
 		metrics:          options.metrics,
 		errorHandler:     options.errorHandler,
 	}
+	if c.CommitInOrder {
+		q.commitRunner = threading.NewStableRunner(func(msg kafka.Message) kafka.Message {
+			if err := q.consumeOne(context.Background(), string(msg.Key), string(msg.Value)); err != nil {
+				if q.errorHandler != nil {
+					q.errorHandler(context.Background(), msg, err)
+				}
+			}
+
+			return msg
+		})
+	}
+
+	return q
 }
 
 func (q *kafkaQueue) Start() {
-	q.startConsumers()
-	q.startProducers()
+	if q.c.CommitInOrder {
+		go q.commitInOrder()
 
-	q.producerRoutines.Wait()
-	close(q.channel)
-	q.consumerRoutines.Wait()
-
-	logx.Infof("Consumer %s is closed", q.c.Name)
+		if err := q.consume(func(msg kafka.Message) {
+			if e := q.commitRunner.Push(msg); e != nil {
+				logx.Error(e)
+			}
+		}); err != nil {
+			logx.Error(err)
+		}
+	} else {
+		q.startConsumers()
+		q.startProducers()
+		q.producerRoutines.Wait()
+		close(q.channel)
+		q.consumerRoutines.Wait()
+    
+    logx.Infof("Consumer %s is closed", q.c.Name)
+	}
 }
 
 func (q *kafkaQueue) Stop() {
@@ -171,9 +201,9 @@ func (q *kafkaQueue) Stop() {
 	logx.Close()
 }
 
-func (q *kafkaQueue) consumeOne(key, val string) error {
+func (q *kafkaQueue) consumeOne(ctx context.Context, key, val string) error {
 	startTime := timex.Now()
-	err := q.handler.Consume(key, val)
+	err := q.handler.Consume(ctx, key, val)
 	q.metrics.Add(stat.Task{
 		Duration: timex.Since(startTime),
 	})
@@ -184,9 +214,16 @@ func (q *kafkaQueue) startConsumers() {
 	for i := 0; i < q.c.Processors; i++ {
 		q.consumerRoutines.Run(func() {
 			for msg := range q.channel {
-				if err := q.consumeOne(string(msg.Key), string(msg.Value)); err != nil {
+				// wrap message into message carrier
+				mc := internal.NewMessageCarrier(internal.NewMessage(&msg))
+				// extract trace context from message
+				ctx := otel.GetTextMapPropagator().Extract(context.Background(), mc)
+				// remove deadline and error control
+				ctx = contextx.ValueOnlyFrom(ctx)
+
+				if err := q.consumeOne(ctx, string(msg.Key), string(msg.Value)); err != nil {
 					if q.errorHandler != nil {
-						q.errorHandler(msg, err)
+						q.errorHandler(ctx, msg, err)
 					}
 
 					if !q.c.ForceCommit {
@@ -194,8 +231,8 @@ func (q *kafkaQueue) startConsumers() {
 					}
 				}
 
-				if err := q.consumer.CommitMessages(context.Background(), msg); err != nil {
-					logx.Errorf("commit failed, error: %v", err)
+				if err := q.consumer.CommitMessages(ctx, msg); err != nil {
+					logc.Errorf(ctx, "commit failed, error: %v", err)
 				}
 			}
 		})
@@ -206,22 +243,45 @@ func (q *kafkaQueue) startProducers() {
 	for i := 0; i < q.c.Consumers; i++ {
 		i := i
 		q.producerRoutines.Run(func() {
-			for {
-				msg, err := q.consumer.FetchMessage(context.Background())
-				// io.EOF means consumer closed
-				// io.ErrClosedPipe means committing messages on the consumer,
-				// kafka will refire the messages on uncommitted messages, ignore
-				if err == io.EOF || err == io.ErrClosedPipe {
-					logx.Infof("Consumer %s-%d is closed, error: %q", q.c.Name, i, err.Error())
-					return
-				}
-				if err != nil {
-					logx.Errorf("Error on reading message, %q", err.Error())
-					continue
-				}
+			if err := q.consume(func(msg kafka.Message) {
 				q.channel <- msg
+			}); err != nil {
+				return
 			}
 		})
+	}
+}
+
+func (q *kafkaQueue) consume(handle func(msg kafka.Message)) error {
+	for {
+		msg, err := q.consumer.FetchMessage(context.Background())
+		// io.EOF means consumer closed
+		// io.ErrClosedPipe means committing messages on the consumer,
+		// kafka will refire the messages on uncommitted messages, ignore
+		if err == io.EOF || errors.Is(err, io.ErrClosedPipe) {
+			logx.Infof("Consumer %s-%d is closed, error: %q", q.c.Name, i, err.Error())
+			return err
+		}
+		if err != nil {
+			logx.Errorf("Error on reading message, %q", err.Error())
+			continue
+		}
+
+		handle(msg)
+	}
+}
+
+func (q *kafkaQueue) commitInOrder() {
+	for {
+		msg, err := q.commitRunner.Get()
+		if err != nil {
+			logx.Error(err)
+			return
+		}
+
+		if err := q.consumer.CommitMessages(context.Background(), msg); err != nil {
+			logx.Errorf("commit failed, error: %v", err)
+		}
 	}
 }
 
@@ -276,8 +336,8 @@ type innerConsumeHandler struct {
 	handle ConsumeHandle
 }
 
-func (ch innerConsumeHandler) Consume(k, v string) error {
-	return ch.handle(k, v)
+func (ch innerConsumeHandler) Consume(ctx context.Context, k, v string) error {
+	return ch.handle(ctx, k, v)
 }
 
 func ensureQueueOptions(c KqConf, options *queueOptions) {
@@ -294,8 +354,8 @@ func ensureQueueOptions(c KqConf, options *queueOptions) {
 		options.metrics = stat.NewMetrics(c.Name)
 	}
 	if options.errorHandler == nil {
-		options.errorHandler = func(msg kafka.Message, err error) {
-			logx.Errorf("consume: %s, error: %v", string(msg.Value), err)
+		options.errorHandler = func(ctx context.Context, msg kafka.Message, err error) {
+			logc.Errorf(ctx, "consume: %s, error: %v", string(msg.Value), err)
 		}
 	}
 }

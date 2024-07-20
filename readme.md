@@ -53,7 +53,7 @@ Kafka Pub/Sub framework
 
 ### consumer example
 
-config.json
+config.yaml
 ```yaml
 Name: kq
 Brokers:
