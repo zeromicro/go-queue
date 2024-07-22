@@ -16,9 +16,14 @@ type (
 	PushOption func(options *pushOptions)
 
 	Pusher struct {
-		producer *kafka.Writer
 		topic    string
+		producer kafkaWriter
 		executor *executors.ChunkExecutor
+	}
+
+	kafkaWriter interface {
+		Close() error
+		WriteMessages(ctx context.Context, msgs ...kafka.Message) error
 	}
 
 	pushOptions struct {
