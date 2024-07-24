@@ -150,6 +150,13 @@ func WithAllowAutoTopicCreation() PushOption {
 	}
 }
 
+// WithBalancer customizes the Pusher with the given balancer.
+func WithBalancer(balancer kafka.Balancer) PushOption {
+	return func(options *pushOptions) {
+		options.balancer = balancer
+	}
+}
+
 // WithChunkSize customizes the Pusher with the given chunk size.
 func WithChunkSize(chunkSize int) PushOption {
 	return func(options *pushOptions) {
@@ -164,20 +171,6 @@ func WithFlushInterval(interval time.Duration) PushOption {
 	}
 }
 
-// WithAllowAutoTopicCreation allows the Pusher to create the given topic if it does not exist.
-func WithAllowAutoTopicCreation() PushOption {
-	return func(options *pushOptions) {
-		options.allowAutoTopicCreation = true
-	}
-}
-
-// WithBalancer customizes the Pusher with the given balancer.
-func WithBalancer(balancer kafka.Balancer) PushOption {
-	return func(options *pushOptions) {
-		options.balancer = balancer
-  }
-}
-    
 // WithSyncPush enables the Pusher to push messages synchronously.
 func WithSyncPush() PushOption {
 	return func(options *pushOptions) {
