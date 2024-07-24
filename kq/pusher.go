@@ -143,23 +143,10 @@ func (p *Pusher) PushWithKey(ctx context.Context, key, v string) error {
 	}
 }
 
-// SetWriterBalancer set kafka-go custom writer balancer.
-func (p *Pusher) SetWriterBalancer(balancer kafka.Balancer) {
-	if p.producer != nil {
-		p.producer.Balancer = balancer
-	}
-}
-
-// PushWithKey sends a message to the Kafka topic with custom message key.
-func (p *Pusher) PushWithKey(k, v string) error {
-	msg := kafka.Message{
-		Key:   []byte(k), // custom message key
-		Value: []byte(v),
-	}
-	if p.executor != nil {
-		return p.executor.Add(msg, len(v))
-	} else {
-		return p.producer.WriteMessages(context.Background(), msg)
+// WithAllowAutoTopicCreation allows the Pusher to create the given topic if it does not exist.
+func WithAllowAutoTopicCreation() PushOption {
+	return func(options *pushOptions) {
+		options.allowAutoTopicCreation = true
 	}
 }
 
