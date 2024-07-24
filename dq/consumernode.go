@@ -1,6 +1,7 @@
 package dq
 
 import (
+	"errors"
 	"time"
 
 	"github.com/beanstalkd/go-beanstalk"
@@ -59,14 +60,25 @@ func (c *consumerNode) consumeEvents(consume Consume) {
 		}
 
 		// the error can only be beanstalk.NameError or beanstalk.ConnError
-		switch cerr := err.(type) {
-		case beanstalk.ConnError:
-			switch cerr.Err {
-			case beanstalk.ErrTimeout:
+		var cerr beanstalk.ConnError
+		switch {
+		case errors.As(err, &cerr):
+			switch {
+			case errors.Is(cerr.Err, beanstalk.ErrTimeout):
 				// timeout error on timeout, just continue the loop
-			case beanstalk.ErrBadChar, beanstalk.ErrBadFormat, beanstalk.ErrBuried, beanstalk.ErrDeadline,
-				beanstalk.ErrDraining, beanstalk.ErrEmpty, beanstalk.ErrInternal, beanstalk.ErrJobTooBig,
-				beanstalk.ErrNoCRLF, beanstalk.ErrNotFound, beanstalk.ErrNotIgnored, beanstalk.ErrTooLong:
+			case
+				errors.Is(cerr.Err, beanstalk.ErrBadChar),
+				errors.Is(cerr.Err, beanstalk.ErrBadFormat),
+				errors.Is(cerr.Err, beanstalk.ErrBuried),
+				errors.Is(cerr.Err, beanstalk.ErrDeadline),
+				errors.Is(cerr.Err, beanstalk.ErrDraining),
+				errors.Is(cerr.Err, beanstalk.ErrEmpty),
+				errors.Is(cerr.Err, beanstalk.ErrInternal),
+				errors.Is(cerr.Err, beanstalk.ErrJobTooBig),
+				errors.Is(cerr.Err, beanstalk.ErrNoCRLF),
+				errors.Is(cerr.Err, beanstalk.ErrNotFound),
+				errors.Is(cerr.Err, beanstalk.ErrNotIgnored),
+				errors.Is(cerr.Err, beanstalk.ErrTooLong):
 				// won't reset
 				logx.Error(err)
 			default:

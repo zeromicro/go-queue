@@ -6,8 +6,10 @@ import (
 	"time"
 
 	"github.com/segmentio/kafka-go"
+	"github.com/zeromicro/go-queue/kq/internal"
 	"github.com/zeromicro/go-zero/core/executors"
 	"github.com/zeromicro/go-zero/core/logx"
+	"go.opentelemetry.io/otel"
 )
 
 type (
@@ -26,6 +28,9 @@ type (
 		// executors.ChunkExecutor options
 		chunkSize     int
 		flushInterval time.Duration
+
+		// syncPush is used to enable sync push
+		syncPush bool
 	}
 )
 
@@ -46,6 +51,16 @@ func NewPusher(addrs []string, topic string, opts ...PushOption) *Pusher {
 	// apply kafka.Writer options
 	producer.AllowAutoTopicCreation = options.allowAutoTopicCreation
 
+	pusher := &Pusher{
+		producer: producer,
+		topic:    topic,
+	}
+
+	// if syncPush is true, return the pusher directly
+	if options.syncPush {
+		return pusher
+	}
+
 	// apply ChunkExecutor options
 	var chunkOpts []executors.ChunkOption
 	if options.chunkSize > 0 {
@@ -55,10 +70,6 @@ func NewPusher(addrs []string, topic string, opts ...PushOption) *Pusher {
 		chunkOpts = append(chunkOpts, executors.WithFlushInterval(options.flushInterval))
 	}
 
-	pusher := &Pusher{
-		producer: producer,
-		topic:    topic,
-	}
 	pusher.executor = executors.NewChunkExecutor(func(tasks []interface{}) {
 		chunk := make([]kafka.Message, len(tasks))
 		for i := range tasks {
@@ -105,6 +116,12 @@ func (p *Pusher) Push(ctx context.Context, v string) error {
 		Key:   []byte(strconv.FormatInt(time.Now().UnixNano(), 10)), // current timestamp
 		Value: []byte(v),
 	}
+
+	// wrap message into message carrier
+	mc := internal.NewMessageCarrier(internal.NewMessage(&msg))
+	// inject trace context into message
+	otel.GetTextMapPropagator().Inject(ctx, mc)
+
 	if p.executor != nil {
 		return p.executor.Add(msg, len(v))
 	} else {
@@ -130,5 +147,12 @@ func WithFlushInterval(interval time.Duration) PushOption {
 func WithAllowAutoTopicCreation() PushOption {
 	return func(options *pushOptions) {
 		options.allowAutoTopicCreation = true
+	}
+}
+
+// WithSyncPush enables the Pusher to push messages synchronously.
+func WithSyncPush() PushOption {
+	return func(options *pushOptions) {
+		options.syncPush = true
 	}
 }
