@@ -41,8 +41,11 @@ func main() {
 			log.Fatal(err)
 		}
 
-		fmt.Println(string(body))
 		if err := pusher.Push(context.Background(), string(body)); err != nil {
+			log.Fatal(err)
+		}
+
+		if err := pusher.KPush(context.Background(), "test", string(body)); err != nil {
 			log.Fatal(err)
 		}
 	}
