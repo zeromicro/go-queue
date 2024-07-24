@@ -1,9 +1,10 @@
 module github.com/zeromicro/go-queue
 
-go 1.19
+go 1.20
 
 require (
 	github.com/beanstalkd/go-beanstalk v0.2.0
+	github.com/nats-io/nats.go v1.34.1
 	github.com/nats-io/stan.go v0.10.4
 	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/segmentio/kafka-go v0.4.47
@@ -29,7 +30,6 @@ require (
 	github.com/matttproud/golang_protobuf_extensions/v2 v2.0.0 // indirect
 	github.com/nats-io/nats-server/v2 v2.9.15 // indirect
 	github.com/nats-io/nats-streaming-server v0.25.3 // indirect
-	github.com/nats-io/nats.go v1.34.1 // indirect
 	github.com/nats-io/nkeys v0.4.7 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/openzipkin/zipkin-go v0.4.2 // indirect
