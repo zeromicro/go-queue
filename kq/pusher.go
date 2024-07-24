@@ -6,8 +6,10 @@ import (
 	"time"
 
 	"github.com/segmentio/kafka-go"
+	"github.com/zeromicro/go-queue/kq/internal"
 	"github.com/zeromicro/go-zero/core/executors"
 	"github.com/zeromicro/go-zero/core/logx"
+	"go.opentelemetry.io/otel"
 )
 
 type (
@@ -27,6 +29,9 @@ type (
 		// executors.ChunkExecutor options
 		chunkSize     int
 		flushInterval time.Duration
+
+		// syncPush is used to enable sync push
+		syncPush bool
 	}
 )
 
@@ -50,6 +55,16 @@ func NewPusher(addrs []string, topic string, opts ...PushOption) *Pusher {
 		producer.Balancer = options.balancer
 	}
 
+	pusher := &Pusher{
+		producer: producer,
+		topic:    topic,
+	}
+
+	// if syncPush is true, return the pusher directly
+	if options.syncPush {
+		return pusher
+	}
+
 	// apply ChunkExecutor options
 	var chunkOpts []executors.ChunkOption
 	if options.chunkSize > 0 {
@@ -59,10 +74,6 @@ func NewPusher(addrs []string, topic string, opts ...PushOption) *Pusher {
 		chunkOpts = append(chunkOpts, executors.WithFlushInterval(options.flushInterval))
 	}
 
-	pusher := &Pusher{
-		producer: producer,
-		topic:    topic,
-	}
 	pusher.executor = executors.NewChunkExecutor(func(tasks []interface{}) {
 		chunk := make([]kafka.Message, len(tasks))
 		for i := range tasks {
@@ -90,16 +101,40 @@ func (p *Pusher) Name() string {
 	return p.topic
 }
 
-// Push sends a message to the Kafka topic.
-func (p *Pusher) Push(v string) error {
+// KPush sends a message to the Kafka topic.
+func (p *Pusher) KPush(ctx context.Context, k, v string) error {
 	msg := kafka.Message{
-		Key:   []byte(strconv.FormatInt(time.Now().UnixNano(), 10)), // current timestamp
+		Key:   []byte(k), // current timestamp
 		Value: []byte(v),
 	}
 	if p.executor != nil {
 		return p.executor.Add(msg, len(v))
 	} else {
-		return p.producer.WriteMessages(context.Background(), msg)
+		return p.producer.WriteMessages(ctx, msg)
+	}
+}
+
+// Push sends a message to the Kafka topic.
+func (p *Pusher) Push(ctx context.Context, v string) error {
+	return p.PushWithKey(ctx, strconv.FormatInt(time.Now().UnixNano(), 10), v)
+}
+
+// PushWithKey sends a message with the given key to the Kafka topic.
+func (p *Pusher) PushWithKey(ctx context.Context, key, v string) error {
+	msg := kafka.Message{
+		Key:   []byte(key),
+		Value: []byte(v),
+	}
+
+	// wrap message into message carrier
+	mc := internal.NewMessageCarrier(internal.NewMessage(&msg))
+	// inject trace context into message
+	otel.GetTextMapPropagator().Inject(ctx, mc)
+
+	if p.executor != nil {
+		return p.executor.Add(msg, len(v))
+	} else {
+		return p.producer.WriteMessages(ctx, msg)
 	}
 }
 
@@ -148,5 +183,12 @@ func WithAllowAutoTopicCreation() PushOption {
 func WithBalancer(balancer kafka.Balancer) PushOption {
 	return func(options *pushOptions) {
 		options.balancer = balancer
+  }
+}
+    
+// WithSyncPush enables the Pusher to push messages synchronously.
+func WithSyncPush() PushOption {
+	return func(options *pushOptions) {
+		options.syncPush = true
 	}
 }
