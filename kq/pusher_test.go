@@ -11,17 +11,17 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// MockKafkaWriter is a mock for kafka.Writer
-type MockKafkaWriter struct {
+// mockKafkaWriter is a mock for kafka.Writer
+type mockKafkaWriter struct {
 	mock.Mock
 }
 
-func (m *MockKafkaWriter) WriteMessages(ctx context.Context, msgs ...kafka.Message) error {
+func (m *mockKafkaWriter) WriteMessages(ctx context.Context, msgs ...kafka.Message) error {
 	args := m.Called(ctx, msgs)
 	return args.Error(0)
 }
 
-func (m *MockKafkaWriter) Close() error {
+func (m *mockKafkaWriter) Close() error {
 	args := m.Called()
 	return args.Error(0)
 }
@@ -66,7 +66,7 @@ func TestNewPusher(t *testing.T) {
 }
 
 func TestPusher_Close(t *testing.T) {
-	mockWriter := new(MockKafkaWriter)
+	mockWriter := new(mockKafkaWriter)
 	pusher := &Pusher{
 		producer: mockWriter,
 	}
@@ -86,7 +86,7 @@ func TestPusher_Name(t *testing.T) {
 }
 
 func TestPusher_Push(t *testing.T) {
-	mockWriter := new(MockKafkaWriter)
+	mockWriter := new(mockKafkaWriter)
 	pusher := &Pusher{
 		producer: mockWriter,
 		topic:    "test-topic",
@@ -103,7 +103,7 @@ func TestPusher_Push(t *testing.T) {
 }
 
 func TestPusher_PushWithKey(t *testing.T) {
-	mockWriter := new(MockKafkaWriter)
+	mockWriter := new(mockKafkaWriter)
 	pusher := &Pusher{
 		producer: mockWriter,
 		topic:    "test-topic",
@@ -121,7 +121,7 @@ func TestPusher_PushWithKey(t *testing.T) {
 }
 
 func TestPusher_PushWithKey_Error(t *testing.T) {
-	mockWriter := new(MockKafkaWriter)
+	mockWriter := new(mockKafkaWriter)
 	pusher := &Pusher{
 		producer: mockWriter,
 		topic:    "test-topic",
