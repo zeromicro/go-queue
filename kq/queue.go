@@ -42,6 +42,12 @@ type (
 		Consume(ctx context.Context, key, value string) error
 	}
 
+	kafkaReader interface {
+		FetchMessage(ctx context.Context) (kafka.Message, error)
+		CommitMessages(ctx context.Context, msgs ...kafka.Message) error
+		Close() error
+	}
+
 	queueOptions struct {
 		commitInterval time.Duration
 		queueCapacity  int
@@ -54,7 +60,7 @@ type (
 
 	kafkaQueue struct {
 		c                KqConf
-		consumer         *kafka.Reader
+		consumer         kafkaReader
 		handler          ConsumeHandler
 		channel          chan kafka.Message
 		producerRoutines *threading.RoutineGroup
@@ -191,7 +197,7 @@ func (q *kafkaQueue) Start() {
 		q.producerRoutines.Wait()
 		close(q.channel)
 		q.consumerRoutines.Wait()
-    
+
 		logx.Infof("Consumer %s is closed", q.c.Name)
 	}
 }

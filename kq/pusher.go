@@ -16,9 +16,14 @@ type (
 	PushOption func(options *pushOptions)
 
 	Pusher struct {
-		producer *kafka.Writer
 		topic    string
+		producer kafkaWriter
 		executor *executors.ChunkExecutor
+	}
+
+	kafkaWriter interface {
+		Close() error
+		WriteMessages(ctx context.Context, msgs ...kafka.Message) error
 	}
 
 	pushOptions struct {
@@ -138,23 +143,17 @@ func (p *Pusher) PushWithKey(ctx context.Context, key, v string) error {
 	}
 }
 
-// SetWriterBalancer set kafka-go custom writer balancer.
-func (p *Pusher) SetWriterBalancer(balancer kafka.Balancer) {
-	if p.producer != nil {
-		p.producer.Balancer = balancer
+// WithAllowAutoTopicCreation allows the Pusher to create the given topic if it does not exist.
+func WithAllowAutoTopicCreation() PushOption {
+	return func(options *pushOptions) {
+		options.allowAutoTopicCreation = true
 	}
 }
 
-// PushWithKey sends a message to the Kafka topic with custom message key.
-func (p *Pusher) PushWithKey(k, v string) error {
-	msg := kafka.Message{
-		Key:   []byte(k), // custom message key
-		Value: []byte(v),
-	}
-	if p.executor != nil {
-		return p.executor.Add(msg, len(v))
-	} else {
-		return p.producer.WriteMessages(context.Background(), msg)
+// WithBalancer customizes the Pusher with the given balancer.
+func WithBalancer(balancer kafka.Balancer) PushOption {
+	return func(options *pushOptions) {
+		options.balancer = balancer
 	}
 }
 
@@ -172,20 +171,6 @@ func WithFlushInterval(interval time.Duration) PushOption {
 	}
 }
 
-// WithAllowAutoTopicCreation allows the Pusher to create the given topic if it does not exist.
-func WithAllowAutoTopicCreation() PushOption {
-	return func(options *pushOptions) {
-		options.allowAutoTopicCreation = true
-	}
-}
-
-// WithBalancer customizes the Pusher with the given balancer.
-func WithBalancer(balancer kafka.Balancer) PushOption {
-	return func(options *pushOptions) {
-		options.balancer = balancer
-  }
-}
-    
 // WithSyncPush enables the Pusher to push messages synchronously.
 func WithSyncPush() PushOption {
 	return func(options *pushOptions) {
