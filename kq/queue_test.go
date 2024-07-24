@@ -134,13 +134,16 @@ func TestKafkaQueue_Start(t *testing.T) {
 	mockReader.On("FetchMessage", mock.Anything).Return(kafka.Message{}, io.EOF).Once()
 	handler.On("Consume", mock.Anything, "test-key", "test-value").Return(nil)
 	mockReader.On("CommitMessages", mock.Anything, []kafka.Message{msg}).Return(nil)
+	mockReader.On("Close").Return(nil)
 
-	go func() {
+	group := threading.NewRoutineGroup()
+	group.Run(func() {
 		time.Sleep(100 * time.Millisecond)
 		q.Stop()
-	}()
+	})
 
 	q.Start()
+	group.Wait()
 
 	mockReader.AssertExpectations(t)
 	handler.AssertExpectations(t)
