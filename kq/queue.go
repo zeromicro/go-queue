@@ -167,7 +167,9 @@ func newKafkaQueue(c KqConf, handler ConsumeHandler, options queueOptions) queue
 	}
 	if c.CommitInOrder {
 		q.commitRunner = threading.NewStableRunner(func(msg kafka.Message) kafka.Message {
-			if err := q.consumeOne(context.Background(), string(msg.Key), string(msg.Value)); err != nil {
+			ctx := extractCtxFromMsg(msg)
+
+			if err := q.consumeOne(ctx, string(msg.Key), string(msg.Value)); err != nil {
 				if q.errorHandler != nil {
 					q.errorHandler(context.Background(), msg, err)
 				}
@@ -220,12 +222,7 @@ func (q *kafkaQueue) startConsumers() {
 	for i := 0; i < q.c.Processors; i++ {
 		q.consumerRoutines.Run(func() {
 			for msg := range q.channel {
-				// wrap message into message carrier
-				mc := internal.NewMessageCarrier(internal.NewMessage(&msg))
-				// extract trace context from message
-				ctx := otel.GetTextMapPropagator().Extract(context.Background(), mc)
-				// remove deadline and error control
-				ctx = contextx.ValueOnlyFrom(ctx)
+				ctx := extractCtxFromMsg(msg)
 
 				if err := q.consumeOne(ctx, string(msg.Key), string(msg.Value)); err != nil {
 					if q.errorHandler != nil {
@@ -364,4 +361,14 @@ func ensureQueueOptions(c KqConf, options *queueOptions) {
 			logc.Errorf(ctx, "consume: %s, error: %v", string(msg.Value), err)
 		}
 	}
+}
+
+func extractCtxFromMsg(msg kafka.Message) context.Context {
+	// wrap message into message carrier
+	mc := internal.NewMessageCarrier(internal.NewMessage(&msg))
+	// extract trace context from message
+	ctx := otel.GetTextMapPropagator().Extract(context.Background(), mc)
+	// remove deadline and error control
+	ctx = contextx.ValueOnlyFrom(ctx)
+	return ctx
 }
