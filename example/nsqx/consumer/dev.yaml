@@ -1,4 +1,4 @@
-Name: kq
+Name: nsqx
 
 NsqLookupdAddr:
   - local.dev:4161

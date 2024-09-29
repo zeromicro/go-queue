@@ -18,7 +18,7 @@ type ConsumerTemplate struct {
 }
 
 func Create(ctx context.Context, svcCtx *svc.ServiceContext, cnf config.ConsumerCnf) *ConsumerTemplate {
-	consumerConfig := nsqx.NewConsumerConfig(cnf.Topic, cnf.Topic, svcCtx.Config.NsqLookupdAddr)
+	consumerConfig := nsqx.NewConsumerConfig(cnf.Topic, cnf.Channel, svcCtx.Config.NsqLookupdAddr)
 	consumer, err := nsqx.NewConsumer(consumerConfig)
 	if err != nil {
 		panic(err)
@@ -42,6 +42,6 @@ func (c *ConsumerTemplate) Start() {
 }
 
 func (c *ConsumerTemplate) Stop() {
-	fmt.Printf("%v [stop]topic:%s channel:%s child:%d\n", time.Now(), c.cnf.Topic, c.cnf.Channel, c.cnf.Num)
+	fmt.Printf("%v [stop]topic:%s channel:%s num:%d\n", time.Now(), c.cnf.Topic, c.cnf.Channel, c.cnf.Num)
 	c.consumer.Stop()
 }

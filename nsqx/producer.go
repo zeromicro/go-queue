@@ -2,7 +2,6 @@ package nsqx
 
 import (
 	"errors"
-	"fmt"
 	"github.com/nsqio/go-nsq"
 	"time"
 )
@@ -97,7 +96,7 @@ func (s *Producer) MultiSender(topic Topic) MultiSender {
 			}
 		}
 		// Return an error if there are no messages to send
-		return fmt.Errorf("empty msg")
+		return ErrEmptyMsg
 	}
 }
 
