@@ -4,8 +4,11 @@ go 1.20
 
 require (
 	github.com/beanstalkd/go-beanstalk v0.2.0
+	github.com/go-logr/stdr v1.2.2
+	github.com/google/uuid v1.6.0
 	github.com/nats-io/nats.go v1.34.1
 	github.com/nats-io/stan.go v0.10.4
+	github.com/nsqio/go-nsq v1.1.0
 	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/segmentio/kafka-go v0.4.47
 	github.com/stretchr/testify v1.9.0
@@ -21,8 +24,8 @@ require (
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/fatih/color v1.17.0 // indirect
 	github.com/go-logr/logr v1.3.0 // indirect
-	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
+	github.com/golang/snappy v0.0.4 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.18.0 // indirect
 	github.com/klauspost/compress v1.17.9 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect

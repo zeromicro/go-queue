@@ -1,0 +1,11 @@
+Name: nsqx
+
+NsqLookupdAddr:
+  - local.dev:4161
+
+Consumer:
+  Test:
+    Topic: test
+    Channel: test-channel
+    ConcurrentHandler: 10
+    Num: 2
