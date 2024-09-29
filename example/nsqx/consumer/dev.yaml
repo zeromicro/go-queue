@@ -1,0 +1,11 @@
+Name: kq
+
+NsqLookupdAddr:
+  - local.dev:4161
+
+Consumer:
+  Test:
+    Topic: test
+    Channel: test-channel
+    ConcurrentHandler: 1
+    Num: 2
