@@ -42,6 +42,6 @@ func (c *ConsumerTemplate) Start() {
 }
 
 func (c *ConsumerTemplate) Stop() {
-	fmt.Printf("%v [stop]mode:%s topic:%s channel:%s child:%d\n", time.Now(), c.cnf.Topic, c.cnf.Channel, c.cnf.Num)
+	fmt.Printf("%v [stop]topic:%s channel:%s child:%d\n", time.Now(), c.cnf.Topic, c.cnf.Channel, c.cnf.Num)
 	c.consumer.Stop()
 }
