@@ -67,6 +67,7 @@ func NewPusher(addrs []string, topic string, opts ...PushOption) *Pusher {
 
 	// if syncPush is true, return the pusher directly
 	if options.syncPush {
+		producer.BatchSize = 1
 		return pusher
 	}
 
