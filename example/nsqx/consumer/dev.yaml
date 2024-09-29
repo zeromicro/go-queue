@@ -7,5 +7,5 @@ Consumer:
   Test:
     Topic: test
     Channel: test-channel
-    ConcurrentHandler: 1
+    ConcurrentHandler: 10
     Num: 2

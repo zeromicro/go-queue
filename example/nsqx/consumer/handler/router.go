@@ -12,7 +12,7 @@ import (
 func parallelRegisterConsumer(group *service.ServiceGroup, svcCtx *svc.ServiceContext, cnf config.ConsumerCnf, hd nsq.Handler) {
 	consumerIns := Create(context.Background(), svcCtx, cnf)
 	consumerIns.AddHandler(hd, cnf.ConcurrentHandler)
-	for i := 0; i < int(cnf.Num); i++ {
+	for i := 0; i < int(cnf.ConcurrentHandler); i++ {
 		group.Add(consumerIns)
 	}
 }
