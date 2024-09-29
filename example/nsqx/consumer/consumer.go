@@ -15,7 +15,6 @@ import (
 
 func main() {
 
-	// 配置
 	var c config.Config
 	conf.MustLoad("dev.yaml", &c)
 
@@ -23,7 +22,7 @@ func main() {
 	group := service.NewServiceGroup()
 	handler.RegisterConsumer(group, ctx)
 	group.Start()
-	//捕捉信号
+
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT)
 	for {
