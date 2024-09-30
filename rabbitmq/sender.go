@@ -49,3 +49,8 @@ func (q *RabbitMqSender) Send(exchange string, routeKey string, msg []byte) erro
 		},
 	)
 }
+
+func (q *RabbitMqSender) Stop() {
+	q.channel.Close()
+	q.conn.Close()
+}
