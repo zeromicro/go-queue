@@ -210,6 +210,11 @@ func (q *kafkaQueue) Stop() {
 }
 
 func (q *kafkaQueue) consumeOne(ctx context.Context, key, val string) error {
+	defer func() {
+		if err := recover(); err != nil {
+			logc.Errorf(ctx, "consumeOne failed recover, error: %v", err)
+		}
+	}()
 	startTime := timex.Now()
 	err := q.handler.Consume(ctx, key, val)
 	q.metrics.Add(stat.Task{
