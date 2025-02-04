@@ -1,10 +1,8 @@
 package dq
 
 import (
-	"bytes"
 	"log"
 	"math/rand"
-	"strconv"
 	"strings"
 	"time"
 
@@ -25,6 +23,9 @@ type (
 		Close() error
 		Delay(body []byte, delay time.Duration) (string, error)
 		Revoke(ids string) error
+
+		at(body []byte, at time.Time) (string, error)
+		delay(body []byte, delay time.Duration) (string, error)
 	}
 
 	producerCluster struct {
@@ -32,8 +33,11 @@ type (
 	}
 )
 
+var rng *rand.Rand
+
 func init() {
-	rand.Seed(time.Now().UnixNano())
+	source := rand.NewSource(time.Now().UnixNano())
+	rng = rand.New(source)
 }
 
 func NewProducer(beanstalks []Beanstalk) Producer {
@@ -56,10 +60,8 @@ func NewProducer(beanstalks []Beanstalk) Producer {
 }
 
 func (p *producerCluster) At(body []byte, at time.Time) (string, error) {
-	wrapped := p.wrap(body, at)
-	return p.insert(func(node Producer) (string, error) {
-		return node.At(wrapped, at)
-	})
+	wrapped := wrap(body, at)
+	return p.at(wrapped, at)
 }
 
 func (p *producerCluster) Close() error {
@@ -73,10 +75,8 @@ func (p *producerCluster) Close() error {
 }
 
 func (p *producerCluster) Delay(body []byte, delay time.Duration) (string, error) {
-	wrapped := p.wrap(body, time.Now().Add(delay))
-	return p.insert(func(node Producer) (string, error) {
-		return node.Delay(wrapped, delay)
-	})
+	wrapped := wrap(body, time.Now().Add(delay))
+	return p.delay(wrapped, delay)
 }
 
 func (p *producerCluster) Revoke(ids string) error {
@@ -98,8 +98,20 @@ func (p *producerCluster) Revoke(ids string) error {
 	return be.Err()
 }
 
+func (p *producerCluster) at(body []byte, at time.Time) (string, error) {
+	return p.insert(func(node Producer) (string, error) {
+		return node.at(body, at)
+	})
+}
+
 func (p *producerCluster) cloneNodes() []Producer {
 	return append([]Producer(nil), p.nodes...)
+}
+
+func (p *producerCluster) delay(body []byte, delay time.Duration) (string, error) {
+	return p.insert(func(node Producer) (string, error) {
+		return node.delay(body, delay)
+	})
 }
 
 func (p *producerCluster) getWriteNodes() []Producer {
@@ -108,7 +120,7 @@ func (p *producerCluster) getWriteNodes() []Producer {
 	}
 
 	nodes := p.cloneNodes()
-	rand.Shuffle(len(nodes), func(i, j int) {
+	rng.Shuffle(len(nodes), func(i, j int) {
 		nodes[i], nodes[j] = nodes[j], nodes[i]
 	})
 	return nodes[:replicaNodes]
@@ -155,12 +167,4 @@ func (p *producerCluster) insert(fn func(node Producer) (string, error)) (string
 	}
 
 	return "", be.Err()
-}
-
-func (p *producerCluster) wrap(body []byte, at time.Time) []byte {
-	var builder bytes.Buffer
-	builder.WriteString(strconv.FormatInt(at.UnixNano(), 10))
-	builder.WriteByte(timeSep)
-	builder.Write(body)
-	return builder.Bytes()
 }

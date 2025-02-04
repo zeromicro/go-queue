@@ -12,7 +12,6 @@ import (
 
 const (
 	expiration = 3600 // seconds
-	guardValue = "1"
 	tolerance  = time.Minute * 30
 )
 
@@ -45,17 +44,19 @@ func NewConsumer(c DqConf) Consumer {
 func (c *consumerCluster) Consume(consume Consume) {
 	guardedConsume := func(body []byte) {
 		key := hash.Md5Hex(body)
-		body, ok := c.unwrap(body)
+		taskBody, ok := c.unwrap(body)
 		if !ok {
 			logx.Errorf("discarded: %q", string(body))
 			return
 		}
 
-		ok, err := c.red.SetnxEx(key, guardValue, expiration)
+		redisLock := redis.NewRedisLock(c.red, key)
+		redisLock.SetExpire(expiration)
+		ok, err := redisLock.Acquire()
 		if err != nil {
 			logx.Error(err)
 		} else if ok {
-			consume(body)
+			consume(taskBody)
 		}
 	}
 
