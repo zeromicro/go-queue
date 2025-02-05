@@ -43,6 +43,10 @@ func MustNewListener(listenerConf RabbitListenerConf, handler ConsumeHandler) qu
 
 func (q RabbitListener) Start() {
 	for _, que := range q.queues.ListenerQueues {
+		err := q.channel.Qos(que.PrefetchCount, que.PrefetchSize, false)
+		if err != nil {
+			log.Fatalf("failed to listener, error: %v", err)
+		}
 		msg, err := q.channel.Consume(
 			que.Name,
 			"",

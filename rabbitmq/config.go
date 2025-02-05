@@ -23,7 +23,9 @@ type ConsumerConf struct {
 	// cannot be delivered to consumers in this connection.
 	NoLocal bool `json:",default=false"`
 	// Whether to block processing
-	NoWait bool `json:",default=false"`
+	NoWait        bool `json:",default=false"`
+	PrefetchCount int  `json:",default=0"`
+	PrefetchSize  int  `json:",default=0"`
 }
 
 type RabbitSenderConf struct {
