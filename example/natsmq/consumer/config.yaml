@@ -1,0 +1,48 @@
+# config.yaml
+
+nats:
+  url: "nats://127.0.0.1:4222"
+
+streams:
+  - name: "user"
+    description: "user stream"
+    subjects: ["user.>"]
+
+consumerQueues:
+  - consumerConfig:
+      name: "taskRegister"
+      durable: "taskRegister"
+      filterSubjects: ["user.register"]
+    delivery:
+      consumptionMethod: "consumer"
+    queueConsumerCount: 3
+    streamName: "user"
+
+  - consumerConfig:
+      name: "activityRegister"
+      durable: "activityRegister"
+      filterSubjects: ["user.register"]
+    delivery:
+      consumptionMethod: "consumer"
+    streamName: "user"
+
+  - consumerConfig:
+      name: "taskRecharger"
+      durable: "taskRecharger"
+      filterSubjects: ["user.recharge"]
+    delivery:
+      consumptionMethod: "fetch"
+    queueConsumerCount: 2
+    streamName: "user"
+
+  - consumerConfig:
+      filterSubjects: ["user.recharge"]
+    delivery:
+      consumptionMethod: "fetchNoWait"
+    streamName: "user"
+
+  - consumerConfig:
+      filterSubjects: ["subject.activity.*"]
+      ordered: true
+    delivery:
+      consumptionMethod: "consumer"

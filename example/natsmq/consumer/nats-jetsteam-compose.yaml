@@ -1,0 +1,15 @@
+version: "3.6"
+
+services:
+  nats:
+    image: nats:2.1.8-alpine3.11
+    command:
+      - "--jetstream"
+      - "--debug"
+      - "--port"
+      - "4222"
+      - "--http_port"
+      - "8222"
+    ports:
+      - "4222:4222"
+      - "8222:8222"
