@@ -123,6 +123,8 @@ func NewQueue(c KqConf, handler ConsumeHandler, opts ...QueueOption) (queue.Mess
 		if err != nil {
 			return nil, err
 		}
+	default:
+		return nil, errors.New("unsupported mechanism: " + c.Mechanism)
 	}
 
 	for i := 0; i < c.Conns; i++ {
