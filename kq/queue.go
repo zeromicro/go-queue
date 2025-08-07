@@ -13,7 +13,9 @@ import (
 	"github.com/segmentio/kafka-go"
 	_ "github.com/segmentio/kafka-go/gzip"
 	_ "github.com/segmentio/kafka-go/lz4"
+	"github.com/segmentio/kafka-go/sasl"
 	"github.com/segmentio/kafka-go/sasl/plain"
+	"github.com/segmentio/kafka-go/sasl/scram"
 	_ "github.com/segmentio/kafka-go/snappy"
 	"github.com/zeromicro/go-queue/kq/internal"
 	"github.com/zeromicro/go-zero/core/contextx"
@@ -102,14 +104,35 @@ func NewQueue(c KqConf, handler ConsumeHandler, opts ...QueueOption) (queue.Mess
 	q := kafkaQueues{
 		group: service.NewServiceGroup(),
 	}
+
+	var mechanism sasl.Mechanism
+	var err error
+	switch c.Mechanism {
+	case "plain":
+		mechanism = plain.Mechanism{
+			Username: c.Username,
+			Password: c.Password,
+		}
+	case "scram-sha-256":
+		mechanism, err = scram.Mechanism(scram.SHA256, c.Username, c.Password)
+		if err != nil {
+			return nil, err
+		}
+	case "scram-sha-512":
+		mechanism, err = scram.Mechanism(scram.SHA512, c.Username, c.Password)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	for i := 0; i < c.Conns; i++ {
-		q.queues = append(q.queues, newKafkaQueue(c, handler, options))
+		q.queues = append(q.queues, newKafkaQueue(c, handler, options, mechanism))
 	}
 
 	return q, nil
 }
 
-func newKafkaQueue(c KqConf, handler ConsumeHandler, options queueOptions) queue.MessageQueue {
+func newKafkaQueue(c KqConf, handler ConsumeHandler, options queueOptions, mechanism sasl.Mechanism) queue.MessageQueue {
 	var offset int64
 	if c.Offset == firstOffset {
 		offset = kafka.FirstOffset
@@ -130,10 +153,7 @@ func newKafkaQueue(c KqConf, handler ConsumeHandler, options queueOptions) queue
 	}
 	if len(c.Username) > 0 && len(c.Password) > 0 {
 		readerConfig.Dialer = &kafka.Dialer{
-			SASLMechanism: plain.Mechanism{
-				Username: c.Username,
-				Password: c.Password,
-			},
+			SASLMechanism: mechanism,
 		}
 	}
 	if len(c.CaFile) > 0 {
