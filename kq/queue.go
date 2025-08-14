@@ -180,6 +180,10 @@ func newKafkaQueue(c KqConf, handler ConsumeHandler, options queueOptions) queue
 	return q
 }
 
+func (q *kafkaQueue) Name() string {
+	return q.c.Name
+}
+
 func (q *kafkaQueue) Start() {
 	if q.c.CommitInOrder {
 		go q.commitInOrder()
