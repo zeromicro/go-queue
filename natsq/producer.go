@@ -47,7 +47,7 @@ type JetProducer struct {
 // NewJetProducer creates a new JetStream producer.
 // It takes a NatsConfig as input and returns a pointer to a JetProducer and an error.
 // It connects to the NATS server using the provided configuration and creates a new JetStream context.
-func NewJetProducer(c *NatsConfig) (*JetProducer, error) {
+func NewJetProducer(c *NatsConfig, ctx context.Context) (*JetProducer, error) {
 	sc, err := nats.Connect(c.ServerUri, c.Options...)
 	if err != nil {
 		return nil, err
@@ -59,6 +59,7 @@ func NewJetProducer(c *NatsConfig) (*JetProducer, error) {
 	return &JetProducer{
 		conn: sc,
 		js:   js,
+		ctx:  ctx,
 	}, nil
 }
 
