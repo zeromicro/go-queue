@@ -15,6 +15,12 @@ import (
 type (
 	PushOption func(options *pushOptions)
 
+	// KeyValue represents a key-value pair for batch sending
+	KeyValue struct {
+		Key   string
+		Value string
+	}
+
 	Pusher struct {
 		topic    string
 		producer kafkaWriter
@@ -176,5 +182,59 @@ func WithFlushInterval(interval time.Duration) PushOption {
 func WithSyncPush() PushOption {
 	return func(options *pushOptions) {
 		options.syncPush = true
+	}
+}
+
+// BatchPush sends multiple messages to the Kafka topic.
+// It generates timestamp-based keys for each message automatically.
+func (p *Pusher) BatchPush(ctx context.Context, msgs []string) error {
+	if len(msgs) == 0 {
+		return nil
+	}
+
+	keyValues := make([]KeyValue, len(msgs))
+	baseTime := time.Now().UnixNano()
+	for i, msg := range msgs {
+		keyValues[i] = KeyValue{
+			Key:   strconv.FormatInt(baseTime+int64(i), 10),
+			Value: msg,
+		}
+	}
+	return p.BatchPushWithKeys(ctx, keyValues)
+}
+
+// BatchPushWithKeys sends multiple key-value pairs to the Kafka topic.
+func (p *Pusher) BatchPushWithKeys(ctx context.Context, keyValues []KeyValue) error {
+	if len(keyValues) == 0 {
+		return nil
+	}
+
+	msgs := make([]kafka.Message, len(keyValues))
+	for i, kv := range keyValues {
+		msg := kafka.Message{
+			Key:   []byte(kv.Key),
+			Value: []byte(kv.Value),
+		}
+
+		// wrap message into message carrier for tracing
+		mc := internal.NewMessageCarrier(internal.NewMessage(&msg))
+		// inject trace context into message
+		otel.GetTextMapPropagator().Inject(ctx, mc)
+
+		msgs[i] = msg
+	}
+
+	// Handle sync vs async mode
+	if p.executor != nil {
+		// Async mode: use executor for batching
+		for _, msg := range msgs {
+			if err := p.executor.Add(msg, len(msg.Value)); err != nil {
+				return err
+			}
+		}
+		return nil
+	} else {
+		// Sync mode: send directly
+		return p.producer.WriteMessages(ctx, msgs...)
 	}
 }

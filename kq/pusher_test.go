@@ -139,3 +139,100 @@ func TestPusher_PushWithKey_Error(t *testing.T) {
 	assert.Equal(t, expectedError, err)
 	mockWriter.AssertExpectations(t)
 }
+
+func TestPusher_BatchPush(t *testing.T) {
+	mockWriter := new(mockKafkaWriter)
+	pusher := &Pusher{
+		producer: mockWriter,
+		topic:    "test-topic",
+	}
+
+	ctx := context.Background()
+	msgs := []string{"message1", "message2", "message3"}
+
+	mockWriter.On("WriteMessages", ctx, mock.MatchedBy(func(msgs []kafka.Message) bool {
+		return len(msgs) == 3 &&
+			string(msgs[0].Value) == "message1" &&
+			string(msgs[1].Value) == "message2" &&
+			string(msgs[2].Value) == "message3"
+	})).Return(nil)
+
+	err := pusher.BatchPush(ctx, msgs)
+	assert.NoError(t, err)
+	mockWriter.AssertExpectations(t)
+}
+
+func TestPusher_BatchPushWithKeys(t *testing.T) {
+	mockWriter := new(mockKafkaWriter)
+	pusher := &Pusher{
+		producer: mockWriter,
+		topic:    "test-topic",
+	}
+
+	ctx := context.Background()
+	keyValues := []KeyValue{
+		{Key: "key1", Value: "value1"},
+		{Key: "key2", Value: "value2"},
+	}
+
+	mockWriter.On("WriteMessages", ctx, mock.MatchedBy(func(msgs []kafka.Message) bool {
+		return len(msgs) == 2 &&
+			string(msgs[0].Key) == "key1" && string(msgs[0].Value) == "value1" &&
+			string(msgs[1].Key) == "key2" && string(msgs[1].Value) == "value2"
+	})).Return(nil)
+
+	err := pusher.BatchPushWithKeys(ctx, keyValues)
+	assert.NoError(t, err)
+	mockWriter.AssertExpectations(t)
+}
+
+func TestPusher_BatchPush_EmptyMessages(t *testing.T) {
+	mockWriter := new(mockKafkaWriter)
+	pusher := &Pusher{
+		producer: mockWriter,
+		topic:    "test-topic",
+	}
+
+	ctx := context.Background()
+	var msgs []string
+
+	err := pusher.BatchPush(ctx, msgs)
+	assert.NoError(t, err)
+	// Should not call WriteMessages for empty slice
+	mockWriter.AssertNotCalled(t, "WriteMessages")
+}
+
+func TestPusher_BatchPushWithKeys_EmptyKeyValues(t *testing.T) {
+	mockWriter := new(mockKafkaWriter)
+	pusher := &Pusher{
+		producer: mockWriter,
+		topic:    "test-topic",
+	}
+
+	ctx := context.Background()
+	var keyValues []KeyValue
+
+	err := pusher.BatchPushWithKeys(ctx, keyValues)
+	assert.NoError(t, err)
+	// Should not call WriteMessages for empty slice
+	mockWriter.AssertNotCalled(t, "WriteMessages")
+}
+
+func TestPusher_BatchPush_Error(t *testing.T) {
+	mockWriter := new(mockKafkaWriter)
+	pusher := &Pusher{
+		producer: mockWriter,
+		topic:    "test-topic",
+	}
+
+	ctx := context.Background()
+	msgs := []string{"message1", "message2"}
+
+	expectedError := errors.New("batch write error")
+	mockWriter.On("WriteMessages", ctx, mock.AnythingOfType("[]kafka.Message")).Return(expectedError)
+
+	err := pusher.BatchPush(ctx, msgs)
+	assert.Error(t, err)
+	assert.Equal(t, expectedError, err)
+	mockWriter.AssertExpectations(t)
+}
