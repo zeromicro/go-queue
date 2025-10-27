@@ -1,8 +1,6 @@
 package natsq
 
-import (
-	"github.com/nats-io/nats.go"
-)
+import "github.com/nats-io/nats.go"
 
 type NatsConfig struct {
 	ServerUri  string
