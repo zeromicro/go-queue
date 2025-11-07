@@ -63,6 +63,39 @@ func TestNewPusher(t *testing.T) {
 		assert.NotNil(t, pusher)
 		assert.True(t, pusher.producer.(*kafka.Writer).AllowAutoTopicCreation)
 	})
+
+	t.Run("WithBatchTimeout", func(t *testing.T) {
+		timeout := 100 * time.Millisecond
+		pusher := NewPusher(addrs, topic, WithBatchTimeout(timeout))
+		assert.NotNil(t, pusher)
+		assert.Equal(t, timeout, pusher.producer.(*kafka.Writer).BatchTimeout)
+	})
+
+	t.Run("WithBatchSize", func(t *testing.T) {
+		size := 100
+		pusher := NewPusher(addrs, topic, WithBatchSize(size))
+		assert.NotNil(t, pusher)
+		assert.Equal(t, size, pusher.producer.(*kafka.Writer).BatchSize)
+	})
+
+	t.Run("WithBatchBytes", func(t *testing.T) {
+		bytes := int64(1024)
+		pusher := NewPusher(addrs, topic, WithBatchBytes(bytes))
+		assert.NotNil(t, pusher)
+		assert.Equal(t, bytes, pusher.producer.(*kafka.Writer).BatchBytes)
+	})
+
+	t.Run("WithMultipleBatchOptions", func(t *testing.T) {
+		timeout := 200 * time.Millisecond
+		size := 50
+		bytes := int64(2048)
+		pusher := NewPusher(addrs, topic, WithBatchTimeout(timeout), WithBatchSize(size), WithBatchBytes(bytes))
+		assert.NotNil(t, pusher)
+		writer := pusher.producer.(*kafka.Writer)
+		assert.Equal(t, timeout, writer.BatchTimeout)
+		assert.Equal(t, size, writer.BatchSize)
+		assert.Equal(t, bytes, writer.BatchBytes)
+	})
 }
 
 func TestPusher_Close(t *testing.T) {

@@ -196,3 +196,24 @@ func TestWithErrorHandler(t *testing.T) {
 	WithErrorHandler(handler)(options)
 	assert.NotNil(t, options.errorHandler)
 }
+
+func TestWithBatchTimeout(t *testing.T) {
+	options := &pushOptions{}
+	timeout := time.Second * 5
+	WithBatchTimeout(timeout)(options)
+	assert.Equal(t, timeout, options.batchTimeout)
+}
+
+func TestWithBatchSize(t *testing.T) {
+	options := &pushOptions{}
+	size := 100
+	WithBatchSize(size)(options)
+	assert.Equal(t, size, options.batchSize)
+}
+
+func TestWithBatchBytes(t *testing.T) {
+	options := &pushOptions{}
+	bytes := int64(1024)
+	WithBatchBytes(bytes)(options)
+	assert.Equal(t, bytes, options.batchBytes)
+}
