@@ -71,13 +71,6 @@ func TestNewPusher(t *testing.T) {
 		assert.Equal(t, timeout, pusher.producer.(*kafka.Writer).BatchTimeout)
 	})
 
-	t.Run("WithBatchSize", func(t *testing.T) {
-		batchSize := 100
-		pusher := NewPusher(addrs, topic, WithBatchSize(batchSize))
-		assert.NotNil(t, pusher)
-		assert.Equal(t, batchSize, pusher.producer.(*kafka.Writer).BatchSize)
-	})
-
 	t.Run("WithBatchBytes", func(t *testing.T) {
 		batchBytes := int64(1024 * 1024) // 1MB
 		pusher := NewPusher(addrs, topic, WithBatchBytes(batchBytes))
@@ -87,13 +80,11 @@ func TestNewPusher(t *testing.T) {
 
 	t.Run("WithMultipleBatchOptions", func(t *testing.T) {
 		timeout := time.Second * 3
-		batchSize := 50
 		batchBytes := int64(512 * 1024) // 512KB
-		pusher := NewPusher(addrs, topic, WithBatchTimeout(timeout), WithBatchSize(batchSize), WithBatchBytes(batchBytes))
+		pusher := NewPusher(addrs, topic, WithBatchTimeout(timeout), WithBatchBytes(batchBytes))
 		assert.NotNil(t, pusher)
 		writer := pusher.producer.(*kafka.Writer)
 		assert.Equal(t, timeout, writer.BatchTimeout)
-		assert.Equal(t, batchSize, writer.BatchSize)
 		assert.Equal(t, batchBytes, writer.BatchBytes)
 	})
 }
@@ -178,13 +169,6 @@ func TestWithBatchTimeout(t *testing.T) {
 	timeout := time.Second * 5
 	WithBatchTimeout(timeout)(options)
 	assert.Equal(t, timeout, options.batchTimeout)
-}
-
-func TestWithBatchSize(t *testing.T) {
-	options := &pushOptions{}
-	batchSize := 100
-	WithBatchSize(batchSize)(options)
-	assert.Equal(t, batchSize, options.batchSize)
 }
 
 func TestWithBatchBytes(t *testing.T) {

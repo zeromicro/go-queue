@@ -31,7 +31,6 @@ type (
 		allowAutoTopicCreation bool
 		balancer               kafka.Balancer
 		batchTimeout           time.Duration
-		batchSize              int
 		batchBytes             int64
 
 		// executors.ChunkExecutor options
@@ -64,9 +63,6 @@ func NewPusher(addrs []string, topic string, opts ...PushOption) *Pusher {
 	}
 	if options.batchTimeout > 0 {
 		producer.BatchTimeout = options.batchTimeout
-	}
-	if options.batchSize > 0 {
-		producer.BatchSize = options.batchSize
 	}
 	if options.batchBytes > 0 {
 		producer.BatchBytes = options.batchBytes
@@ -195,13 +191,6 @@ func WithSyncPush() PushOption {
 func WithBatchTimeout(timeout time.Duration) PushOption {
 	return func(options *pushOptions) {
 		options.batchTimeout = timeout
-	}
-}
-
-// WithBatchSize customizes the Pusher with the given batch size.
-func WithBatchSize(size int) PushOption {
-	return func(options *pushOptions) {
-		options.batchSize = size
 	}
 }
 
