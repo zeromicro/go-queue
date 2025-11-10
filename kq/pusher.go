@@ -30,6 +30,8 @@ type (
 		// kafka.Writer options
 		allowAutoTopicCreation bool
 		balancer               kafka.Balancer
+		batchTimeout           time.Duration
+		batchBytes             int64
 
 		// executors.ChunkExecutor options
 		chunkSize     int
@@ -58,6 +60,12 @@ func NewPusher(addrs []string, topic string, opts ...PushOption) *Pusher {
 	producer.AllowAutoTopicCreation = options.allowAutoTopicCreation
 	if options.balancer != nil {
 		producer.Balancer = options.balancer
+	}
+	if options.batchTimeout > 0 {
+		producer.BatchTimeout = options.batchTimeout
+	}
+	if options.batchBytes > 0 {
+		producer.BatchBytes = options.batchBytes
 	}
 
 	pusher := &Pusher{
@@ -176,5 +184,19 @@ func WithFlushInterval(interval time.Duration) PushOption {
 func WithSyncPush() PushOption {
 	return func(options *pushOptions) {
 		options.syncPush = true
+	}
+}
+
+// WithBatchTimeout customizes the Pusher with the given batch timeout.
+func WithBatchTimeout(timeout time.Duration) PushOption {
+	return func(options *pushOptions) {
+		options.batchTimeout = timeout
+	}
+}
+
+// WithBatchBytes customizes the Pusher with the given batch bytes.
+func WithBatchBytes(bytes int64) PushOption {
+	return func(options *pushOptions) {
+		options.batchBytes = bytes
 	}
 }
