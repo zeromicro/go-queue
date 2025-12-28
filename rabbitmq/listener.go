@@ -15,6 +15,12 @@ type (
 		Consume(message string) error
 	}
 
+	// ConsumeHandlerWithAck extends ConsumeHandler to support manual acknowledgment
+	ConsumeHandlerWithAck interface {
+		ConsumeHandler
+		ConsumeWithAck(message string, delivery amqp.Delivery) error
+	}
+
 	RabbitListener struct {
 		conn    *amqp.Connection
 		channel *amqp.Channel
@@ -56,13 +62,26 @@ func (q RabbitListener) Start() {
 			log.Fatalf("failed to listener, error: %v", err)
 		}
 
-		go func() {
+		go func(queueConf ConsumerConf) {
 			for d := range msg {
-				if err := q.handler.Consume(string(d.Body)); err != nil {
-					logx.Errorf("Error on consuming: %s, error: %v", string(d.Body), err)
+				// Check if handler supports manual ack
+				if handlerWithAck, ok := q.handler.(ConsumeHandlerWithAck); ok && !queueConf.AutoAck {
+					if err := handlerWithAck.ConsumeWithAck(string(d.Body), d); err != nil {
+						logx.Errorf("Error on consuming: %s, error: %v", string(d.Body), err)
+					}
+				} else {
+					if err := q.handler.Consume(string(d.Body)); err != nil {
+						logx.Errorf("Error on consuming: %s, error: %v", string(d.Body), err)
+					}
+					// Auto-ack if AutoAck is enabled
+					if queueConf.AutoAck {
+						if err := d.Ack(false); err != nil {
+							logx.Errorf("Failed to auto-ack message: %v", err)
+						}
+					}
 				}
 			}
-		}()
+		}(que)
 	}
 
 	<-q.forever
