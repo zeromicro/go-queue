@@ -6,5 +6,6 @@ ListenerConf:
   ListenerQueues:
     -
       Name: gozero
+      AutoAck: false  # Enable manual acknowledgment
 
 
