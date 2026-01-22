@@ -44,4 +44,26 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	err = admin.DeclareExchange(rabbitmq.ExchangeConf{
+		ExchangeName: "orders.dlx",
+		Type:         "direct",
+		Durable:      true,
+	}, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	quorumQueueConf := rabbitmq.QueueConf{
+		Name:                 "orders.quorum",
+		QueueType:            "quorum",
+		Durable:              true,
+		DeliveryLimit:        20,
+		DeadLetterExchange:   "orders.dlx",
+		DeadLetterRoutingKey: "failed",
+	}
+	err = admin.DeclareQueueConf(quorumQueueConf)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
