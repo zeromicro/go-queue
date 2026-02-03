@@ -32,11 +32,15 @@ type RabbitSenderConf struct {
 }
 
 type QueueConf struct {
-	Name       string
-	Durable    bool `json:",default=true"`
-	AutoDelete bool `json:",default=false"`
-	Exclusive  bool `json:",default=false"`
-	NoWait     bool `json:",default=false"`
+	Name                 string
+	QueueType            string `json:",options=classic|quorum,default=classic"`
+	Durable              bool   `json:",default=true"`
+	AutoDelete           bool   `json:",default=false"`
+	Exclusive            bool   `json:",default=false"`
+	NoWait               bool   `json:",default=false"`
+	DeliveryLimit        int64  `json:",optional"`
+	DeadLetterExchange   string `json:",optional"`
+	DeadLetterRoutingKey string `json:",optional"`
 }
 
 type ExchangeConf struct {

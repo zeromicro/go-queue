@@ -62,3 +62,39 @@ func (q *Admin) Bind(queueName string, routekey string, exchange string, notWait
 		args,
 	)
 }
+
+func buildQueueArgs(conf QueueConf) amqp.Table {
+	args := make(amqp.Table)
+
+	if conf.QueueType != "" && conf.QueueType != "classic" {
+		args["x-queue-type"] = conf.QueueType
+	}
+
+	if conf.DeliveryLimit != 0 {
+		args["x-delivery-limit"] = conf.DeliveryLimit
+	}
+
+	if conf.DeadLetterExchange != "" {
+		args["x-dead-letter-exchange"] = conf.DeadLetterExchange
+	}
+
+	if conf.DeadLetterRoutingKey != "" {
+		args["x-dead-letter-routing-key"] = conf.DeadLetterRoutingKey
+	}
+
+	return args
+}
+
+func (q *Admin) DeclareQueueConf(conf QueueConf) error {
+	args := buildQueueArgs(conf)
+	_, err := q.channel.QueueDeclare(
+		conf.Name,
+		conf.Durable,
+		conf.AutoDelete,
+		conf.Exclusive,
+		conf.NoWait,
+		args,
+	)
+
+	return err
+}
