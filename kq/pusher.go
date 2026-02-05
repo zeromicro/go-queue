@@ -2,10 +2,13 @@ package kq
 
 import (
 	"context"
+	"crypto/tls"
 	"strconv"
 	"time"
 
 	"github.com/segmentio/kafka-go"
+	"github.com/segmentio/kafka-go/sasl"
+	"github.com/segmentio/kafka-go/sasl/plain"
 	"github.com/zeromicro/go-queue/kq/internal"
 	"github.com/zeromicro/go-zero/core/executors"
 	"github.com/zeromicro/go-zero/core/logx"
@@ -30,6 +33,8 @@ type (
 		// kafka.Writer options
 		allowAutoTopicCreation bool
 		balancer               kafka.Balancer
+		saslMechanism          sasl.Mechanism
+		tlsConfig              *tls.Config
 
 		// executors.ChunkExecutor options
 		chunkSize     int
@@ -37,6 +42,10 @@ type (
 
 		// syncPush is used to enable sync push
 		syncPush bool
+		
+		// sasl options
+		username string
+		password string
 	}
 )
 
@@ -58,6 +67,22 @@ func NewPusher(addrs []string, topic string, opts ...PushOption) *Pusher {
 	producer.AllowAutoTopicCreation = options.allowAutoTopicCreation
 	if options.balancer != nil {
 		producer.Balancer = options.balancer
+	}
+
+	if options.tlsConfig != nil || options.saslMechanism != nil || (len(options.username) > 0 && len(options.password) > 0) {
+		transport := &kafka.Transport{
+			TLS:  options.tlsConfig,
+			SASL: options.saslMechanism,
+		}
+
+		if len(options.username) > 0 && len(options.password) > 0 {
+			transport.SASL = plain.Mechanism{
+				Username: options.username,
+				Password: options.password,
+			}
+		}
+
+		producer.Transport = transport
 	}
 
 	pusher := &Pusher{
@@ -176,5 +201,27 @@ func WithFlushInterval(interval time.Duration) PushOption {
 func WithSyncPush() PushOption {
 	return func(options *pushOptions) {
 		options.syncPush = true
+	}
+}
+
+// WithSaslPlain customizes the Pusher with the given username and password.
+func WithSaslPlain(username, password string) PushOption {
+	return func(options *pushOptions) {
+		options.username = username
+		options.password = password
+	}
+}
+
+// WithSASL customizes the Pusher with the given sasl mechanism.
+func WithSASL(saslMechanism sasl.Mechanism) PushOption {
+	return func(options *pushOptions) {
+		options.saslMechanism = saslMechanism
+	}
+}
+
+// WithTLS customizes the Pusher with the given tls config.
+func WithTLS(tlsConfig *tls.Config) PushOption {
+	return func(options *pushOptions) {
+		options.tlsConfig = tlsConfig
 	}
 }

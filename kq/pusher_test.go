@@ -2,11 +2,13 @@ package kq
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"testing"
 	"time"
 
 	"github.com/segmentio/kafka-go"
+	"github.com/segmentio/kafka-go/sasl/plain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -62,6 +64,47 @@ func TestNewPusher(t *testing.T) {
 		pusher := NewPusher(addrs, topic, WithAllowAutoTopicCreation())
 		assert.NotNil(t, pusher)
 		assert.True(t, pusher.producer.(*kafka.Writer).AllowAutoTopicCreation)
+	})
+
+	t.Run("WithTLS", func(t *testing.T) {
+		pusher := NewPusher(addrs, topic, WithTLS(&tls.Config{}))
+		assert.NotNil(t, pusher)
+		assert.NotNil(t, pusher.producer.(*kafka.Writer).Transport)
+	})
+
+	t.Run("WithSASL", func(t *testing.T) {
+		pusher := NewPusher(addrs, topic, WithSASL(plain.Mechanism{}))
+		assert.NotNil(t, pusher)
+		assert.NotNil(t, pusher.producer.(*kafka.Writer).Transport)
+	})
+
+	t.Run("WithSaslPlain", func(t *testing.T) {
+		pusher := NewPusher(addrs, topic, WithSaslPlain("user", "pass"))
+		assert.NotNil(t, pusher)
+		transport := pusher.producer.(*kafka.Writer).Transport.(*kafka.Transport)
+		assert.NotNil(t, transport)
+		assert.NotNil(t, transport.SASL)
+	})
+
+	t.Run("WithTLSAndSASL", func(t *testing.T) {
+		pusher := NewPusher(addrs, topic,
+			WithTLS(&tls.Config{}),
+			WithSaslPlain("user", "pass"),
+		)
+		assert.NotNil(t, pusher)
+		transport := pusher.producer.(*kafka.Writer).Transport.(*kafka.Transport)
+		assert.NotNil(t, transport)
+		assert.NotNil(t, transport.TLS)
+		assert.NotNil(t, transport.SASL)
+	})
+
+	t.Run("WithTLSAndSaslPlain", func(t *testing.T) {
+		pusher := NewPusher(addrs, topic, WithTLS(&tls.Config{}), WithSaslPlain("user", "pass"))
+		assert.NotNil(t, pusher)
+		transport := pusher.producer.(*kafka.Writer).Transport.(*kafka.Transport)
+		assert.NotNil(t, transport)
+		assert.NotNil(t, transport.TLS)
+		assert.NotNil(t, transport.SASL)
 	})
 }
 
