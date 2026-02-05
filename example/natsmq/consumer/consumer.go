@@ -1,17 +1,19 @@
 package main
 
 import (
+	"context"
 	"flag"
-	"github.com/nats-io/nats.go"
-	"github.com/nats-io/nats.go/jetstream"
-	"github.com/zeromicro/go-queue/natsmq/common"
-	"github.com/zeromicro/go-queue/natsmq/consumer"
-	"github.com/zeromicro/go-zero/core/conf"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
+	"github.com/zeromicro/go-queue/natsmq/common"
+	"github.com/zeromicro/go-queue/natsmq/consumer"
+	"github.com/zeromicro/go-zero/core/conf"
 )
 
 var configFile = flag.String("f", "config.yaml", "Specify the config file")
@@ -28,7 +30,7 @@ type NatsConf struct {
 
 type MyConsumeHandler struct{}
 
-func (h *MyConsumeHandler) Consume(msg jetstream.Msg) error {
+func (h *MyConsumeHandler) Consume(ctx context.Context, msg jetstream.Msg) error {
 	log.Printf("subject [%s] Received message: %s", msg.Subject(), string(msg.Data()))
 	return nil
 }

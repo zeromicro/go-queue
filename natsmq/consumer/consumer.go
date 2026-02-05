@@ -4,11 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
+
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/zeromicro/go-queue/natsmq/common"
+	"github.com/zeromicro/go-queue/natsmq/internal"
+	"github.com/zeromicro/go-zero/core/contextx"
 	"github.com/zeromicro/go-zero/core/queue"
-	"log"
+	"go.opentelemetry.io/otel"
 )
 
 // ConsumerManager manages consumer operations including NATS connection, JetStream stream initialization,
@@ -205,7 +209,14 @@ func (cm *ConsumerManager) consumerSubscription(consumer jetstream.Consumer, cfg
 //	cfg - pointer to ConsumerQueueConfig containing the message handler and acknowledgement settings
 //	msg - the JetStream message to process
 func (cm *ConsumerManager) ackMessage(cfg *ConsumerQueueConfig, msg jetstream.Msg) {
-	if err := cfg.Handler.Consume(msg); err != nil {
+	headers := msg.Headers()
+	carrier := internal.NewHeaderCarrier(&headers)
+	// extract trace context from message
+	ctx := otel.GetTextMapPropagator().Extract(context.Background(), carrier)
+	// remove deadline and error control
+	ctx = contextx.ValueOnlyFrom(ctx)
+
+	if err := cfg.Handler.Consume(ctx, msg); err != nil {
 		log.Printf("message processing error: %v", err)
 		return
 	}

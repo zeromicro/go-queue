@@ -3,10 +3,13 @@ package publisher
 import (
 	"context"
 	"fmt"
+	"log"
+
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/zeromicro/go-queue/natsmq/common"
-	"log"
+	"github.com/zeromicro/go-queue/natsmq/internal"
+	"go.opentelemetry.io/otel"
 )
 
 // JetStreamPublisher implements the Publisher interface by utilizing an internal JetStream context for message publishing.
@@ -68,9 +71,42 @@ func (p *JetStreamPublisher) initJetStream() error {
 
 // Publish synchronously publishes a message to the specified subject and waits for a server acknowledgment.
 func (p *JetStreamPublisher) Publish(ctx context.Context, subject string, payload []byte) (*jetstream.PubAck, error) {
-	ack, err := p.js.Publish(ctx, subject, payload)
+	ack, err := p.PublishWithHeaders(ctx, subject, payload, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to publish message on subject %s: %w", subject, err)
+	}
+	return ack, nil
+}
+
+// PublishWithHeaders publishes a message with optional headers and waits for a server acknowledgment.
+func (p *JetStreamPublisher) PublishWithHeaders(ctx context.Context, subject string, payload []byte, headers map[string]string) (*jetstream.PubAck, error) {
+	msg := &nats.Msg{
+		Subject: subject,
+		Data:    payload,
+	}
+	if len(headers) > 0 {
+		msg.Header = make(nats.Header, len(headers))
+		for key, value := range headers {
+			msg.Header.Set(key, value)
+		}
+	}
+
+	return p.PublishMsg(ctx, msg)
+}
+
+// PublishMsg publishes a full NATS message and waits for a server acknowledgment.
+func (p *JetStreamPublisher) PublishMsg(ctx context.Context, msg *nats.Msg) (*jetstream.PubAck, error) {
+	if msg == nil {
+		return nil, fmt.Errorf("message is nil")
+	}
+
+	// inject trace context into message headers
+	mc := internal.NewHeaderCarrier(&msg.Header)
+	otel.GetTextMapPropagator().Inject(ctx, mc)
+
+	ack, err := p.js.PublishMsg(ctx, msg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to publish message on subject %s: %w", msg.Subject, err)
 	}
 	return ack, nil
 }

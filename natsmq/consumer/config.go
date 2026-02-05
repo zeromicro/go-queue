@@ -1,8 +1,10 @@
 package consumer
 
 import (
-	"github.com/nats-io/nats.go/jetstream"
+	"context"
 	"time"
+
+	"github.com/nats-io/nats.go/jetstream"
 )
 
 // ConsumerConfig combines core consumer settings with advanced parameters.
@@ -59,5 +61,5 @@ const (
 // ConsumeHandler defines an interface for message processing.
 // Users need to implement the Consume method to handle individual messages.
 type ConsumeHandler interface {
-	Consume(msg jetstream.Msg) error
+	Consume(ctx context.Context, msg jetstream.Msg) error
 }
