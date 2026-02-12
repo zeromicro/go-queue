@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"math/rand"
 	"time"
@@ -29,7 +30,7 @@ func main() {
 	p.Close()
 
 	// JetMode
-	j, _ := natsq.NewJetProducer(&c)
+	j, _ := natsq.NewJetProducer(&c, context.Background())
 	j.CreateOrUpdateStream(jetstream.StreamConfig{
 		Name:     "ccc",
 		Subjects: []string{"ccc", "ddd", "eee"},
@@ -50,8 +51,8 @@ func main() {
 
 func randSub() string {
 	source := rand.NewSource(time.Now().UnixNano())
-    // 创建一个新的随机数生成器
-    rng := rand.New(source)
+	// 创建一个新的随机数生成器
+	rng := rand.New(source)
 	strings := []string{"ccc", "ddd", "eee"}
 	randomIndex := rng.Intn(len(strings))
 	return strings[randomIndex]
