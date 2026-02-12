@@ -133,7 +133,7 @@ func (cm *ConsumerManager) subscribe(queue ConsumerQueue) {
 	ctx := context.Background()
 	if cm.mode == NatJetMode {
 		js, _ := jetstream.New(cm.conn)
-		stream, err := js.Stream(ctx, "ccc")
+		stream, err := js.Stream(ctx, queue.StreamName)
 		if err != nil {
 			log.Fatalf("Error creating stream: %v", err)
 			return
