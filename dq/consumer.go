@@ -21,7 +21,7 @@ type (
 	Consume func(body []byte)
 
 	Consumer interface {
-		Consume(consume Consume)
+		Consume(consume Consume) *service.ServiceGroup
 	}
 
 	consumerCluster struct {
@@ -41,7 +41,7 @@ func NewConsumer(c DqConf) Consumer {
 	}
 }
 
-func (c *consumerCluster) Consume(consume Consume) {
+func (c *consumerCluster) Consume(consume Consume) *service.ServiceGroup {
 	guardedConsume := func(body []byte) {
 		key := hash.Md5Hex(body)
 		taskBody, ok := c.unwrap(body)
@@ -67,7 +67,8 @@ func (c *consumerCluster) Consume(consume Consume) {
 			consume: guardedConsume,
 		})
 	}
-	group.Start()
+
+	return group
 }
 
 func (c *consumerCluster) unwrap(body []byte) ([]byte, bool) {
