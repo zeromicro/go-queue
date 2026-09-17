@@ -13,13 +13,16 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
+const defaultPushTimeout = 30 * time.Second
+
 type (
 	PushOption func(options *chunkOptions)
 
 	Pusher struct {
-		produer  *kafka.Writer
-		topic    string
-		executor *executors.ChunkExecutor
+		produer     *kafka.Writer
+		topic       string
+		executor    *executors.ChunkExecutor
+		pushTimeout time.Duration
 	}
 
 	chunkOptions struct {
@@ -88,8 +91,9 @@ func NewPusher(config KqConf, opts ...PushOption) *Pusher {
 	}
 
 	pusher := &Pusher{
-		produer: producer,
-		topic:   config.Topic,
+		produer:     producer,
+		topic:       config.Topic,
+		pushTimeout: resolvePushTimeout(config.PushTimeout),
 	}
 
 	pusher.executor = executors.NewChunkExecutor(func(tasks []interface{}) {
@@ -97,7 +101,7 @@ func NewPusher(config KqConf, opts ...PushOption) *Pusher {
 		for i := range tasks {
 			chunk[i] = tasks[i].(kafka.Message)
 		}
-		if err := pusher.produer.WriteMessages(context.Background(), chunk...); err != nil {
+		if err := pusher.writeMessages(chunk...); err != nil {
 			logx.Error(err)
 		}
 	}, newOptions(opts)...)
@@ -125,8 +129,23 @@ func (p *Pusher) Push(v string) error {
 	if p.executor != nil {
 		return p.executor.Add(msg, len(v))
 	} else {
-		return p.produer.WriteMessages(context.Background(), msg)
+		return p.writeMessages(msg)
 	}
+}
+
+func (p *Pusher) writeMessages(messages ...kafka.Message) error {
+	ctx, cancel := context.WithTimeout(context.Background(), p.pushTimeout)
+	defer cancel()
+
+	return p.produer.WriteMessages(ctx, messages...)
+}
+
+func resolvePushTimeout(timeout time.Duration) time.Duration {
+	if timeout > 0 {
+		return timeout
+	}
+
+	return defaultPushTimeout
 }
 
 func WithChunkSize(chunkSize int) PushOption {

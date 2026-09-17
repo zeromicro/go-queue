@@ -1,6 +1,10 @@
 package kq
 
-import "github.com/zeromicro/go-zero/core/service"
+import (
+	"time"
+
+	"github.com/zeromicro/go-zero/core/service"
+)
 
 const (
 	firstOffset = "first"
@@ -22,4 +26,7 @@ type KqConf struct {
 	Password    string `json:",optional"`
 	ForceCommit bool   `json:",default=true"`
 	Mechanism   string `json:",optional"`
+	// PushTimeout bounds one Kafka WriteMessages call, including metadata lookup.
+	// A non-positive value falls back to the default timeout.
+	PushTimeout time.Duration `json:",default=30s"`
 }
